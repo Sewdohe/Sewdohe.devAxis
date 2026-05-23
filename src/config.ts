@@ -341,7 +341,7 @@ export const siteConfig: SiteConfig = {
     { title: 'Home', url: '/', icon: 'home', showInNav: false },
     { title: 'Posts', url: '/posts/', icon: 'pencil-square' },
     { title: 'Projects', url: '/projects/', icon: 'folder', children: [{ title: 'NaviBot', url: '/projects/navibot-discord-engine/' }] },
-    { title: 'Docs', url: '/docs/', icon: 'book', children: [{ title: 'Navibot Development', url: '/docs//' }] },
+    { title: 'Docs', url: '/docs/', icon: 'book', children: [{ title: 'Navibot Development', url: '/docs/navibot-development-guide/' }] },
     { title: 'About', url: '/about/', icon: 'user-circle' },
     { title: 'Buy', url: 'https://store.davidvkimball.com/checkout/buy/b942a935-bc8b-4389-a50a-c8aada83002f', icon: 'shopping-bag', showInNav: false }
   ],
@@ -374,8 +374,8 @@ export const siteConfig: SiteConfig = {
     // [CONFIG:NAVIGATION_SOCIAL]
     social: [
       { title: 'GitHub', url: 'https://github.com/davidvkimball', icon: 'github' },
-      { title: 'Discord', url: 'https://discord.gg/gyrNHAwHK8', icon: 'discord' },
-      { title: 'BlueSky', url: 'https://', icon: 'bksy' }
+      { title: 'Discord', url: 'https://discord.gg/KK287qAdFB', icon: 'discord' },
+      { title: 'BlueSky', url: 'https://bsky.app/profile/divnectar.com', icon: 'bluesky' }
     ],
   },
 

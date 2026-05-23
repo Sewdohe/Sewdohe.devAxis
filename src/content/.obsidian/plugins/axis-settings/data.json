@@ -36,13 +36,13 @@
       },
       {
         "title": "Discord",
-        "url": "https://discord.gg/gyrNHAwHK8",
+        "url": "https://discord.gg/KK287qAdFB",
         "icon": "discord"
       },
       {
         "title": "BlueSky",
-        "url": "https://",
-        "icon": "bksy"
+        "url": "https://bsky.app/profile/divnectar.com",
+        "icon": "bluesky"
       }
     ],
     "pages": [
@@ -103,7 +103,7 @@
       "children": [
         {
           "title": "Navibot Development",
-          "url": "/docs//"
+          "url": "/docs/navibot-development-guide/"
         }
       ],
       "title": "Docs",
