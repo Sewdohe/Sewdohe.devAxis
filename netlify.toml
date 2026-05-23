@@ -24,11 +24,6 @@
   status = 301
   force = true
 [[redirects]]
-  from = "/posts/my-note-taking-workflow"
-  to = "/posts/my-complete-note-taking-workflow"
-  status = 301
-  force = true
-[[redirects]]
   from = "/purchase"
   to = "https://store.davidvkimball.com/checkout/buy/b942a935-bc8b-4389-a50a-c8aada83002f"
   status = 301

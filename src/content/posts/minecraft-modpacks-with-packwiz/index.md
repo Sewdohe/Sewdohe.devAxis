@@ -6,13 +6,13 @@ description: How to create/maintain a modpack with the Packwiz software
 tags:
   - tutorial
   - minecraft
-image: ""
-imageAlt: ""
+image: packwiz.png
+imageAlt: packwiz
 imageOG: true
 hideCoverImage: false
 hideTOC: false
 hideLocalGraph: false
-keyword: ""
+keyword: packwiz
 draft: false
 ---
 
