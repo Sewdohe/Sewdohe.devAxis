@@ -11,8 +11,8 @@ image: project.jpg
 imageAlt: project
 hideCoverImage: false
 hideTOC: false
-draft: false
-featured: true
+draft: true
+featured: false
 ---
 
 This is a sample project entry. Edit or replace this file at `src/content/projects/<slug>/index.md`.
