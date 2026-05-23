@@ -1,0 +1,57 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import PostList from '@/components/PostList.astro';
+import Pagination from '@/components/Pagination.astro';
+import { getCollection } from 'astro:content';
+import { shouldShowPost, sortPostsByDate } from '@/utils/markdown';
+import { siteConfig } from '@/config';
+import type { Post } from '@/types';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('posts') as unknown as Post[];
+  const posts = sortPostsByDate(allPosts.filter(shouldShowPost));
+
+  const tagMap = new Map<string, Post[]>();
+  for (const post of posts) {
+    for (const tag of post.data.tags || []) {
+      if (!tagMap.has(tag)) tagMap.set(tag, []);
+      tagMap.get(tag)!.push(post);
+    }
+  }
+
+  const paths: { params: { tag: string; page: string }; props: { tag: string; page: number; totalPages: number; posts: Post[] } }[] = [];
+
+  for (const [tag, tagPosts] of tagMap) {
+    const totalPages = Math.ceil(tagPosts.length / siteConfig.postsPerPage);
+    for (let i = 1; i < totalPages; i++) {
+      paths.push({
+        params: { tag, page: String(i + 1) },
+        props: {
+          tag,
+          page: i + 1,
+          totalPages,
+          posts: tagPosts.slice(
+            i * siteConfig.postsPerPage,
+            (i + 1) * siteConfig.postsPerPage
+          ),
+        },
+      });
+    }
+  }
+
+  return paths;
+}
+
+const { tag, page, totalPages, posts } = Astro.props;
+---
+
+<BaseLayout title={`Posts tagged #${tag} - Page ${page}`} description={`All posts tagged "${tag}". Page ${page} of ${totalPages}.`} ogImage={`/open-graph/${siteConfig.routes?.postsBase || 'posts'}/tag/${tag}/${page}.png`}>
+  <Container>
+    <section class="py-8">
+      <h1 class="text-2xl font-semibold tracking-tight mb-8">Posts tagged #{tag}</h1>
+      <PostList posts={posts} />
+      <Pagination currentPage={page} totalPages={totalPages} baseUrl={`/posts/tag/${tag}`} />
+    </section>
+  </Container>
+</BaseLayout>

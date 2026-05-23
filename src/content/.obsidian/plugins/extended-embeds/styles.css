@@ -1,0 +1,590 @@
+/* Extended Embeds - Core */
+.block-language-embed {
+	margin: 1em 0;
+	padding: 0;
+}
+
+/* Hide edit-block-button on iframe embeds (Spotify, SoundCloud, CodePen) */
+.extended-embed-spotify ~ .edit-block-button,
+.extended-embed-soundcloud ~ .edit-block-button,
+.extended-embed-codepen ~ .edit-block-button {
+	display: none !important;
+}
+
+/* Also target when wrapper is inside block-language-embed */
+.block-language-embed:has(.extended-embed-spotify) + .edit-block-button,
+.block-language-embed:has(.extended-embed-soundcloud) + .edit-block-button,
+.block-language-embed:has(.extended-embed-codepen) + .edit-block-button {
+	display: none !important;
+}
+
+.cm-preview-code-block:has(.extended-embed-spotify) > .edit-block-button,
+.cm-preview-code-block:has(.extended-embed-apple-music) > .edit-block-button,
+.cm-preview-code-block:has(.extended-embed-vimeo) > .edit-block-button,
+.cm-preview-code-block:has(.extended-embed-soundcloud) > .edit-block-button,
+.cm-preview-code-block:has(.extended-embed-bandcamp) > .edit-block-button,
+.cm-preview-code-block:has(.extended-embed-codepen) > .edit-block-button,
+.cm-preview-code-block:has(.extended-embed-figma) > .edit-block-button {
+	display: none !important;
+}
+
+.extended-embed-wrapper {
+	margin: 0;
+	width: 100%;
+	min-width: 0;
+	position: relative;
+}
+
+/* Override Obsidian's global image constraints inside our cards */
+.extended-embed-card img {
+	max-width: none !important;
+	opacity: 1 !important;
+	image-rendering: auto;
+}
+
+/* Custom width sizing */
+.extended-embed-wrapper.extended-embed-custom-width {
+	width: var(--embed-width);
+	max-width: 100%;
+}
+
+.extended-embed-wrapper.extended-embed-custom-width .extended-embed-card {
+	width: 100%;
+}
+
+.extended-embed-wrapper.extended-embed-custom-width iframe {
+	max-width: var(--embed-width);
+	height: var(--embed-height, auto);
+}
+
+/* Loading / Error */
+.extended-embed-loading {
+	padding: 1em;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.extended-embed-error {
+	color: var(--text-error);
+	font-style: normal;
+}
+
+/* ─── Iframe Embeds (Spotify, SoundCloud, CodePen) ─── */
+.extended-embed iframe {
+	width: 100%;
+	border: none;
+	border-radius: 8px;
+}
+
+.extended-embed-spotify iframe {
+	width: 100%;
+	border-radius: 12px;
+}
+
+.extended-embed-vimeo {
+	position: relative;
+	padding-top: 56.25%;
+}
+
+.extended-embed-vimeo iframe {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	border-radius: 8px;
+}
+
+.extended-embed-soundcloud iframe {
+	height: 166px;
+	border-radius: 8px;
+	overflow: hidden;
+}
+
+.extended-embed-soundcloud {
+	overflow: hidden;
+	border-radius: 8px;
+}
+
+.extended-embed-codepen iframe {
+	height: 400px;
+}
+
+.extended-embed-apple-music iframe {
+	width: 100%;
+	border-radius: 10px;
+	overflow: hidden;
+}
+
+.extended-embed-bandcamp iframe {
+	width: 100%;
+	border: none;
+}
+
+.extended-embed-figma iframe {
+	width: 100%;
+	height: 450px;
+	border-radius: 8px;
+}
+
+/* LinkedIn: mode-specific box (compact/collapsed/full differ inside the iframe) */
+.extended-embed-linkedin {
+	container-type: inline-size;
+	width: 100%;
+	min-width: 0;
+}
+
+.extended-embed-linkedin iframe {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: 8px;
+}
+
+.extended-embed-linkedin[data-li-mode="full"] iframe,
+.extended-embed-linkedin:not([data-li-mode]) iframe {
+	aspect-ratio: 4 / 5;
+	max-height: min(88dvh, calc(100cqw * 1.35));
+}
+
+.extended-embed-linkedin[data-li-mode="compact"] iframe {
+	aspect-ratio: 16 / 9;
+	max-height: min(78dvh, calc(100cqw * 0.62));
+}
+
+.extended-embed-linkedin[data-li-mode="collapsed"] iframe {
+	aspect-ratio: 3 / 2;
+	max-height: min(70dvh, calc(100cqw * 0.72));
+}
+
+/* ─── Card Embeds (GitHub Repo, Issue, Gist, Open Graph) ─── */
+.extended-embed-card {
+	display: block;
+	position: relative;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 16px;
+	color: inherit;
+	overflow: hidden;
+}
+
+.extended-embed-card p {
+	margin: 4px 0;
+	padding: 0;
+}
+
+/* Clickable title/name links inside cards */
+.extended-embed-card a {
+	text-decoration: none;
+	color: var(--text-accent);
+}
+
+.extended-embed-card a:hover {
+	text-decoration: underline;
+}
+
+/* Dark / light theme variants */
+.extended-embed-dark {
+	background-color: var(--background-secondary);
+}
+
+.extended-embed-light {
+	background-color: var(--background-primary);
+}
+
+/* Card header */
+.extended-embed-card-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+	flex-wrap: wrap;
+}
+
+/* Brand icon (pushed to far right of header) */
+.extended-embed-brand-icon {
+	margin-left: auto;
+	flex-shrink: 0;
+	opacity: 0.7;
+}
+
+/* GitHub repo card */
+.extended-embed-avatar {
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+
+.extended-embed-repo-name {
+	font-weight: 600;
+	font-size: 1em;
+	color: var(--text-accent);
+}
+
+.extended-embed-description {
+	margin: 0 0 16px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+/* Card footer (shared) */
+.extended-embed-card-footer {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding-top: 8px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	flex-wrap: wrap;
+}
+
+/* Language dot */
+.extended-embed-language {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.extended-embed-lang-dot {
+	display: inline-block;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+/* Stars / forks */
+.extended-embed-stat {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.extended-embed-stat-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.extended-embed-stat-icon svg {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+/* ─── GitHub Issue / PR Card ─── */
+.extended-embed-state-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 0.8em;
+	font-weight: 600;
+	flex-shrink: 0;
+}
+
+.extended-embed-state-open {
+	background-color: #238636;
+	color: #ffffff;
+}
+
+.extended-embed-state-closed {
+	background-color: #da3633;
+	color: #ffffff;
+}
+
+.extended-embed-state-merged {
+	background-color: #8957e5;
+	color: #ffffff;
+}
+
+.extended-embed-issue-title {
+	font-weight: 600;
+	font-size: 1em;
+}
+
+.extended-embed-subtitle {
+	margin: 0 0 16px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+/* Labels */
+.extended-embed-labels {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.extended-embed-label {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 12px;
+	font-size: 0.8em;
+	font-weight: 500;
+}
+
+/* Author meta */
+.extended-embed-meta {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.extended-embed-avatar-small {
+	border-radius: 50%;
+	flex-shrink: 0;
+}
+
+/* ─── GitHub Gist Card ─── */
+.extended-embed-gist-card {
+	display: flex;
+	flex-direction: column;
+}
+
+.extended-embed-gist-owner {
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.extended-embed-gist-title {
+	display: block;
+	margin: 4px 0 8px;
+	font-size: 0.9em;
+	line-height: 1.4;
+}
+
+.extended-embed-gist-file {
+	margin-top: 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	overflow: hidden;
+	position: relative;
+}
+
+.extended-embed-gist-file-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	background-color: var(--background-modifier-hover);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.extended-embed-gist-filename {
+	font-family: var(--font-monospace);
+	font-weight: 500;
+}
+
+.extended-embed-gist-code {
+	margin: 0;
+	padding: 10px 12px;
+	font-size: 0.8em;
+	line-height: 1.5;
+	overflow-x: auto;
+	max-height: 300px;
+	background-color: var(--code-background);
+	position: relative;
+}
+
+.extended-embed-gist-code::-webkit-scrollbar {
+	cursor: default;
+}
+
+.extended-embed-gist-code code {
+	font-family: var(--font-monospace);
+	white-space: pre;
+	color: var(--code-normal);
+}
+
+/* ─── Open Graph Card ─── */
+.extended-embed-og-card {
+	display: flex;
+	flex-direction: row;
+	padding: 0 !important;
+	overflow: hidden;
+}
+
+.extended-embed-og-image-link {
+	display: block;
+	width: 180px !important;
+	flex-shrink: 0;
+	line-height: 0;
+	text-decoration: none;
+	overflow: hidden;
+	align-self: stretch;
+}
+
+.extended-embed-og-image {
+	display: block !important;
+	width: 100% !important;
+	height: 100% !important;
+	max-width: none !important;
+	object-fit: cover;
+	border-radius: 0 !important;
+	margin: 0;
+}
+
+.extended-embed-og-body {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 16px;
+	min-width: 0;
+	justify-content: center;
+}
+
+.extended-embed-og-site {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.8em;
+	color: var(--text-muted);
+}
+
+.extended-embed-favicon {
+	flex-shrink: 0;
+	border-radius: 2px;
+}
+
+.extended-embed-og-title {
+	margin: 0;
+	font-weight: 600;
+	font-size: 1em;
+	line-height: 1.3;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.extended-embed-og-desc {
+	margin: 0;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.4;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+}
+
+/* ─── Reddit Post Card ─── */
+.extended-embed-reddit-subreddit {
+	font-weight: 600;
+	font-size: 0.85em;
+}
+
+.extended-embed-reddit-meta {
+	font-size: 0.8em;
+	color: var(--text-muted);
+}
+
+.extended-embed-reddit-author-link {
+	color: var(--text-muted);
+	text-decoration: none;
+}
+
+.extended-embed-reddit-author-link:hover {
+	text-decoration: underline;
+}
+
+.extended-embed-reddit-flair {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 12px;
+	font-size: 0.75em;
+	font-weight: 500;
+	background-color: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.extended-embed-reddit-title {
+	display: block;
+	margin: 8px 0 4px;
+	font-weight: 600;
+	font-size: 1em;
+	line-height: 1.3;
+}
+
+.extended-embed-reddit-body {
+	margin: 4px 0 12px;
+	font-size: 0.9em;
+	color: var(--text-muted);
+	line-height: 1.5;
+	white-space: pre-wrap;
+}
+
+/* ─── Bluesky Post Card ─── */
+.extended-embed-bluesky-author {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.extended-embed-bluesky-displayname {
+	font-weight: 600;
+}
+
+.extended-embed-bluesky-handle {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	text-decoration: none;
+}
+
+.extended-embed-bluesky-handle:hover {
+	text-decoration: underline;
+}
+
+.extended-embed-bluesky-text {
+	margin: 8px 0 12px;
+	font-size: 0.95em;
+	line-height: 1.5;
+	color: var(--text-normal);
+	white-space: pre-wrap;
+}
+
+.extended-embed-bluesky-media {
+	display: block;
+	width: 100%;
+	border-radius: 8px;
+	margin: 8px 0 12px;
+}
+
+/* ─── Mastodon Post Card ─── */
+.extended-embed-mastodon-author {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.extended-embed-mastodon-displayname {
+	font-weight: 600;
+}
+
+.extended-embed-mastodon-handle {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	text-decoration: none;
+}
+
+.extended-embed-mastodon-handle:hover {
+	text-decoration: underline;
+}
+
+.extended-embed-mastodon-text {
+	margin: 8px 0 12px;
+	font-size: 0.95em;
+	line-height: 1.5;
+	color: var(--text-normal);
+	white-space: pre-wrap;
+}
+
+.extended-embed-mastodon-media {
+	display: block;
+	width: 100%;
+	border-radius: 8px;
+	margin: 8px 0 12px;
+}

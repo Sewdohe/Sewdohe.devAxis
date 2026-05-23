@@ -1,0 +1,91 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import FormattedDate from '@/components/FormattedDate.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import LocalGraph from '@/components/LocalGraph.astro';
+import { siteConfig, siteUrl } from '@/config';
+import { hasGraphDataForSlug } from '@/utils/graph-data';
+import type { Page, Heading } from '@/types';
+
+interface Props {
+  page: Page;
+  headings: Heading[];
+}
+
+const { page, headings } = Astro.props;
+const { title, description, hideTOC, noIndex, image, imageAlt, imageOG, hideCoverImage } = page.data;
+const updated = (page.data as any).updated;
+const showUpdated = (page.data as any).showUpdated;
+
+function resolvePageImage(imagePath: string, pageId: string): string {
+  let clean = imagePath.replace(/^\.\//, '');
+  if (clean.startsWith('images/') || clean.startsWith('attachments/')) {
+    clean = clean.replace(/^(images|attachments)\//, '');
+  }
+  return `/${pageId}/${clean}`;
+}
+
+const ogImage = imageOG && image
+  ? resolvePageImage(image, page.id)
+  : `/open-graph/${page.id}.png`;
+
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+const showToc = !hideTOC && tocHeadings.length >= 2;
+
+const showGraph =
+  siteConfig.features?.localGraph &&
+  siteConfig.features?.localGraphPages !== false &&
+  hasGraphDataForSlug(`page:${page.id}`);
+
+const pageUrl = siteUrl(page.id);
+const jsonLd = noIndex ? undefined : {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: title,
+  description: description || '',
+  url: pageUrl,
+  ...(updated ? { dateModified: new Date(updated).toISOString() } : {}),
+  author: {
+    '@type': 'Person',
+    name: siteConfig.author,
+    url: siteConfig.site,
+  },
+};
+---
+
+<BaseLayout
+  title={title}
+  description={description || undefined}
+  ogImage={ogImage}
+  noIndex={noIndex}
+  jsonLd={jsonLd}
+>
+  <Container>
+    <article class="py-8">
+      <header class="mb-8 animate">
+        <h1 class="text-2xl font-semibold tracking-tight">{title}</h1>
+        {showUpdated && updated && (
+          <div class="mt-2">
+            <span class="text-xs" style="color: var(--muted); opacity: 0.5;">
+              updated <FormattedDate date={new Date(updated)} class="text-xs" />
+            </span>
+          </div>
+        )}
+      </header>
+
+      <div class="prose prose-neutral dark:prose-invert max-w-none animate">
+        <slot />
+      </div>
+    </article>
+  </Container>
+
+  <div class="toc-sidebar animate">
+    {showGraph && (
+      <div class="mb-6">
+        <LocalGraph currentSlug={`page:${page.id}`} />
+      </div>
+    )}
+    {showToc && <TableOfContents headings={tocHeadings} />}
+  </div>
+</BaseLayout>

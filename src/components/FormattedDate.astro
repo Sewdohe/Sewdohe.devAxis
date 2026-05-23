@@ -1,0 +1,25 @@
+---
+interface Props {
+  date: Date;
+  short?: boolean;
+  class?: string;
+  [key: string]: any;
+}
+
+const { date, short = false, class: className, ...rest } = Astro.props;
+
+// UTC to avoid timezone shift
+const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dayNum = date.getUTCDate();
+const dayPad = String(dayNum).padStart(2, '0');
+const monthIndex = date.getUTCMonth();
+const year = date.getUTCFullYear();
+
+// short: "Jan 07" (for post list)
+// full: "January 7, 2026" (for post pages)
+const formatted = short ? `${monthShort[monthIndex]} ${dayPad}` : `${monthNames[monthIndex]} ${dayNum}, ${year}`;
+---
+<time datetime={date.toISOString()} class={className} {...rest}>
+  {formatted}
+</time>

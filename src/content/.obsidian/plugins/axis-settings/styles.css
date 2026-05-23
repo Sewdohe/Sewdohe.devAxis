@@ -1,0 +1,75 @@
+/* Axis Settings Plugin — Obsidian UI Styles */
+
+/* ── Tab system ─────────────────────────────────────────────── */
+
+.axis-settings-tab-root {
+	display: block;
+	min-height: 0;
+}
+
+.axis-settings-tabs {
+	display: block;
+	min-height: 0;
+}
+
+.axis-settings-tabs-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-2-3);
+	flex-shrink: 0;
+	margin-bottom: var(--size-4-4);
+}
+
+.axis-settings-tab-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px 12px;
+	font-size: var(--font-ui-small);
+}
+
+.axis-settings-tab-button.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.axis-settings-tabs-content {
+	position: static;
+	min-height: 0;
+	overflow: visible;
+	box-sizing: border-box;
+	padding-inline-end: 0;
+}
+
+.axis-settings-tab {
+	display: none;
+}
+
+.axis-settings-tab.is-active {
+	display: block;
+}
+
+/* ── Social link / page editor rows ─────────────────────────── */
+
+.axis-social-links,
+.axis-pages-editor {
+	padding: var(--size-4-4) 0;
+}
+
+.axis-social-links .setting-item,
+.axis-pages-editor .setting-item {
+	padding-top: 12px;
+	padding-bottom: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/* Collapse the empty left info area so controls sit on the left */
+.axis-social-links .setting-item .setting-item-info,
+.axis-pages-editor .setting-item .setting-item-info {
+	display: none;
+}
+
+.axis-social-links .setting-item .setting-item-control,
+.axis-pages-editor .setting-item .setting-item-control {
+	justify-content: flex-start;
+}

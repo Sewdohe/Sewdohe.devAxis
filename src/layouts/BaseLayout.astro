@@ -1,0 +1,750 @@
+---
+import BaseHead from '@/components/BaseHead.astro';
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import CommandPalette from '@/components/CommandPalette.astro';
+import ScrollToTop from '@/components/ScrollToTop.astro';
+import ThemeSelector from '@/components/ThemeSelector.astro';
+import GraphModal from '@/components/GraphModal.astro';
+import { siteConfig } from '@/config';
+import { themes } from '@/themes/index';
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  ogType?: string;
+  canonicalUrl?: string;
+  noIndex?: boolean;
+  publishedTime?: string;
+  tags?: string[];
+  jsonLd?: Record<string, any>;
+  isHome?: boolean;
+}
+
+const { isHome, ...headProps } = Astro.props;
+
+const consentEnabled = Boolean(siteConfig.cookieConsentEnabled);
+const consentPayload = consentEnabled ? { head: siteConfig.snippets?.head ?? '', bodyEnd: siteConfig.snippets?.bodyEnd ?? '' } : null;
+const consentPayloadB64 = consentPayload && typeof Buffer !== 'undefined' ? Buffer.from(JSON.stringify(consentPayload), 'utf8').toString('base64') : '';
+
+// Theme choices: don't mount ThemeSelector when there's nothing to switch to
+const allThemeNames = Object.keys(themes);
+let availableThemes: string[];
+if (siteConfig.availableThemes === 'all') availableThemes = allThemeNames;
+else if (Array.isArray(siteConfig.availableThemes)) availableThemes = siteConfig.availableThemes;
+else availableThemes = allThemeNames;
+const defaultTheme = siteConfig.theme || 'axis';
+const hasThemeChoices = availableThemes.filter(t => t !== defaultTheme).length > 0;
+---
+
+<!doctype html>
+<html lang={siteConfig.language || 'en'}>
+  <head>
+    <BaseHead {...headProps} isHome={isHome} />
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <Header isHome={isHome} />
+    <main class="flex-1">
+      <slot />
+    </main>
+    <!-- Set tweet theme BEFORE widgets.js auto-processes blockquotes -->
+    <script is:inline>
+      (function() {
+        var isDark = document.documentElement.classList.contains('dark');
+        var theme = isDark ? 'dark' : 'light';
+        document.querySelectorAll('.twitter-tweet').forEach(function(el) {
+          el.setAttribute('data-theme', theme);
+        });
+      })();
+    </script>
+    <Footer />
+    {siteConfig.commandPaletteEnabled !== false && <CommandPalette />}
+    {hasThemeChoices && <ThemeSelector />}
+    {siteConfig.graphEnabled !== false && <GraphModal />}
+    {siteConfig.features?.scrollToTop !== false && <ScrollToTop />}
+
+    <!-- Stagger fade-in animations & replay after View Transition navigations -->
+    <script is:inline>
+      function initAnimations() {
+        document.querySelectorAll('.animate').forEach(function(el, i) {
+          el.style.setProperty('--stagger', i);
+        });
+      }
+      initAnimations();
+      document.addEventListener('astro:after-swap', function() {
+        var els = document.querySelectorAll('.animate');
+        els.forEach(function(el, i) {
+          el.style.animation = 'none';
+          el.style.setProperty('--stagger', i);
+        });
+        // Force synchronous reflow so the browser registers the
+        // animation: none state before we clear it. Without this, the
+        // browser can coalesce the two style writes and skip restarting
+        // the animation entirely (leaving inline animation: none stuck).
+        els.forEach(function(el) { void (el).offsetHeight; });
+        els.forEach(function(el) { el.style.animation = ''; });
+      });
+    </script>
+
+    <script>
+      import mediumZoom from 'medium-zoom';
+      import type { Zoom } from 'medium-zoom';
+
+      let zoomInstance: Zoom | null = null;
+      let mermaidModule: typeof import('mermaid') | null = null;
+      const mermaidCache = new Map<string, { svg: string; theme: string }>();
+
+      async function getMermaid() {
+        if (!mermaidModule) {
+          mermaidModule = await import('mermaid');
+        }
+        return mermaidModule.default;
+      }
+
+      function initZoom() {
+        // Tear down previous instance (may reference stale DOM after View Transition)
+        if (zoomInstance) {
+          try { zoomInstance.close(); zoomInstance.detach(); } catch {}
+          zoomInstance = null;
+        }
+        // Clean up any zoom artifacts that survived the DOM swap
+        document.querySelectorAll('.medium-zoom-overlay').forEach(el => el.remove());
+
+        // Exclude images inside links (let the link handle the click) and grid images
+        const zoomTargets = Array.from(
+          document.querySelectorAll('.prose img:not(.image-grid img)')
+        ).filter(img => !img.closest('a')) as HTMLImageElement[];
+        zoomInstance = mediumZoom(zoomTargets, {
+          background: 'var(--bg)',
+        });
+      }
+
+      function initCallouts() {
+        document.querySelectorAll('.callout-collapsible .callout-title').forEach((title) => {
+          if ((title as HTMLElement).dataset.calloutInit) return;
+          (title as HTMLElement).dataset.calloutInit = 'true';
+          title.addEventListener('click', () => {
+            const callout = title.closest('.callout-collapsible');
+            if (!callout) return;
+            const content = callout.querySelector('.callout-content') as HTMLElement;
+            if (!content) return;
+            const isCollapsed = callout.classList.toggle('callout-collapsed');
+            content.style.display = isCollapsed ? 'none' : '';
+            const toggle = title.querySelector('.callout-toggle');
+            if (toggle) {
+              toggle.setAttribute('aria-expanded', String(!isCollapsed));
+            }
+          });
+        });
+      }
+
+      function initScrollToTop() {
+        // Remove previous scroll handler if it exists
+        if ((window as any).__scrollToTopHandler) {
+          window.removeEventListener('scroll', (window as any).__scrollToTopHandler);
+        }
+
+        const handler = () => {
+          const btn = document.getElementById('scroll-to-top');
+          if (!btn) return;
+          if (window.scrollY > 300) {
+            btn.classList.add('visible');
+          } else {
+            btn.classList.remove('visible');
+          }
+        };
+
+        (window as any).__scrollToTopHandler = handler;
+        window.addEventListener('scroll', handler, { passive: true });
+        handler(); // check initial state
+
+        const btn = document.getElementById('scroll-to-top');
+        if (!btn) return;
+        // Use a data attribute to prevent duplicate click listeners
+        if (!btn.dataset.bound) {
+          btn.dataset.bound = 'true';
+          btn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          });
+        }
+      }
+
+      let footnoteObserver: ResizeObserver | null = null;
+
+      function initFootnotes() {
+        // Clean up previous observer
+        if (footnoteObserver) {
+          footnoteObserver.disconnect();
+          footnoteObserver = null;
+        }
+
+        if (!window.matchMedia('(min-width: 1280px)').matches) return;
+
+        const prose = document.querySelector('.prose');
+        if (!prose) return;
+
+        const footnoteSection = prose.querySelector('.footnotes') as HTMLElement | null;
+        if (!footnoteSection) return;
+
+        const refs = prose.querySelectorAll('[data-footnote-ref]');
+        if (refs.length === 0) return;
+
+        function positionFootnotes() {
+          if (!footnoteSection) return;
+          const sectionRect = footnoteSection.getBoundingClientRect();
+          let lastBottom = 0;
+
+          refs.forEach(ref => {
+            const href = ref.getAttribute('href');
+            if (!href) return;
+            const targetId = href.replace('#', '');
+            const footnoteLi = document.getElementById(targetId);
+            if (!footnoteLi) return;
+
+            const sup = ref.closest('sup');
+            if (!sup) return;
+
+            const supRect = sup.getBoundingClientRect();
+            let top = supRect.top - sectionRect.top;
+
+            if (top < lastBottom) {
+              top = lastBottom;
+            }
+
+            footnoteLi.style.top = `${top}px`;
+            lastBottom = top + footnoteLi.offsetHeight + 8;
+          });
+        }
+
+        positionFootnotes();
+
+        // Re-position when content size changes (tweet embeds, images, etc.)
+        let debounceTimer: ReturnType<typeof setTimeout>;
+        footnoteObserver = new ResizeObserver(() => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(positionFootnotes, 100);
+        });
+        footnoteObserver.observe(prose);
+      }
+
+      function getCurrentMermaidTheme(): 'dark' | 'default' {
+        return document.documentElement.classList.contains('dark') ? 'dark' : 'default';
+      }
+
+      // Mermaid v11's `dark` preset doesn't fully theme sequence/ER/git diagrams
+      // (e.g. sequence actorBkg stays #eaeaea). Override the variables that
+      // those diagram types read so dark mode is consistent across all types.
+      function getMermaidConfig(theme: 'dark' | 'default') {
+        if (theme === 'dark') {
+          return {
+            startOnLoad: false,
+            theme: 'dark' as const,
+            securityLevel: 'loose' as const,
+            themeVariables: {
+              // Sequence diagram
+              actorBkg: '#1f2020',
+              actorBorder: '#81B1DB',
+              actorTextColor: '#e0dcdc',
+              actorLineColor: '#666',
+              signalColor: '#cccccc',
+              signalTextColor: '#cccccc',
+              labelBoxBkgColor: '#1f2020',
+              labelBoxBorderColor: '#81B1DB',
+              labelTextColor: '#e0dcdc',
+              loopTextColor: '#cccccc',
+              noteBkgColor: '#3c3c3c',
+              noteBorderColor: '#81B1DB',
+              noteTextColor: '#e0dcdc',
+              activationBkgColor: '#3c3c3c',
+              activationBorderColor: '#81B1DB',
+              sequenceNumberColor: '#1f2020',
+            },
+          };
+        }
+        return {
+          startOnLoad: false,
+          theme: 'default' as const,
+          securityLevel: 'loose' as const,
+        };
+      }
+
+      // Bumped on every theme change so stale renders started before the
+      // change can be detected and discarded.
+      let mermaidRenderGen = 0;
+      // Serialize all renders. Mermaid mutates global state during initialize+render,
+      // so parallel renders for different diagrams can produce mixed-theme output.
+      let mermaidRenderQueue: Promise<void> = Promise.resolve();
+
+      async function doRenderMermaid(diagram: Element, theme: 'dark' | 'default', gen: number) {
+        const source = decodeURIComponent(diagram.getAttribute('data-mermaid-source') || '');
+        if (!source) return;
+        if (gen !== mermaidRenderGen) return; // theme changed mid-flight; abort
+
+        const cacheKey = `${source}-${theme}`;
+        const content = diagram.querySelector('.mermaid-diagram-content');
+        if (!content) return;
+
+        if (mermaidCache.has(cacheKey)) {
+          if (gen !== mermaidRenderGen) return;
+          content.innerHTML = mermaidCache.get(cacheKey)!.svg;
+          return;
+        }
+
+        const mermaid = await getMermaid();
+        if (gen !== mermaidRenderGen) return;
+        mermaid.initialize(getMermaidConfig(theme));
+        const id = `mermaid-${Math.random().toString(36).slice(2, 11)}`;
+        try {
+          const { svg } = await mermaid.render(id, source);
+          mermaidCache.set(cacheKey, { svg, theme });
+          if (gen !== mermaidRenderGen) return;
+          content.innerHTML = svg;
+        } catch {
+          // Leave the source code visible as fallback
+        }
+      }
+
+      function renderAllMermaid(theme: 'dark' | 'default') {
+        const diagrams = Array.from(document.querySelectorAll('.mermaid-diagram[data-mermaid-source]'));
+        if (diagrams.length === 0) return;
+        const gen = ++mermaidRenderGen;
+        // Chain onto the queue so renders run sequentially.
+        mermaidRenderQueue = mermaidRenderQueue.then(async () => {
+          for (const d of diagrams) {
+            if (gen !== mermaidRenderGen) return;
+            await doRenderMermaid(d, theme, gen);
+          }
+        });
+      }
+
+      function initMermaid() {
+        // Clean up stale mermaid render artifacts left in body from previous pages
+        document.querySelectorAll('body > [id^="dmermaid"], body > [id^="d3mermaid"], body > .mermaid-container').forEach(el => el.remove());
+        renderAllMermaid(getCurrentMermaidTheme());
+      }
+
+      function handleMermaidThemeChange() {
+        renderAllMermaid(getCurrentMermaidTheme());
+      }
+
+      function initTwitter() {
+        const tweets = document.querySelectorAll('.twitter-tweet');
+        if (tweets.length === 0) return;
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const theme = isDark ? 'dark' : 'light';
+
+        // Update the meta tag
+        const themeMeta = document.querySelector('meta[name="twitter\\:widgets\\:theme"]');
+        if (themeMeta) themeMeta.setAttribute('content', theme);
+
+        // Set correct theme on all tweet blockquotes BEFORE widgets process them
+        tweets.forEach(el => {
+          el.setAttribute('data-theme', theme);
+        });
+
+        // Inject widgets.js the first time we see a tweet on any page in this session
+        if (!document.querySelector('script[src*="platform.twitter.com/widgets.js"]')) {
+          const s = document.createElement('script');
+          s.src = 'https://platform.twitter.com/widgets.js';
+          s.async = true;
+          s.charset = 'utf-8';
+          document.body.appendChild(s);
+        }
+
+        // Wait for widgets.js to load, then process tweets
+        function loadWidgets() {
+          if (typeof (window as any).twttr !== 'undefined' && (window as any).twttr.widgets) {
+            (window as any).twttr.widgets.load();
+          } else {
+            setTimeout(loadWidgets, 500);
+          }
+        }
+        loadWidgets();
+      }
+
+      let liteYoutubeLoaded = false;
+      let liteVimeoLoaded = false;
+
+      async function initVideoEmbeds() {
+        if (!liteYoutubeLoaded && document.querySelector('lite-youtube')) {
+          liteYoutubeLoaded = true;
+          await import('@justinribeiro/lite-youtube');
+        }
+        if (!liteVimeoLoaded && document.querySelector('lite-vimeo')) {
+          liteVimeoLoaded = true;
+          await import('@choctawnationofoklahoma/lite-vimeo');
+        }
+      }
+
+      // Watch for theme changes to update embeds (Twitter, Mermaid)
+      function initThemeObserver() {
+        const observer = new MutationObserver((mutations) => {
+          for (const mutation of mutations) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+              const isDark = document.documentElement.classList.contains('dark');
+              const theme = isDark ? 'dark' : 'light';
+
+              // Twitter: update meta tag
+              const themeMeta = document.querySelector('meta[name="twitter\\:widgets\\:theme"]');
+              if (themeMeta) themeMeta.setAttribute('content', theme);
+
+              // Twitter: force-update iframe themes
+              document.querySelectorAll('iframe[src*="platform.twitter.com"]').forEach(iframe => {
+                const src = (iframe as HTMLIFrameElement).src;
+                const updated = src.replace(/theme=[^&]+/, `theme=${theme}`);
+                if (updated !== src) (iframe as HTMLIFrameElement).src = updated;
+              });
+
+              // Mermaid: re-render with new theme
+              handleMermaidThemeChange();
+            }
+          }
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+      }
+      initThemeObserver();
+
+      function initGallery() {
+        // Remove previous lightbox if it exists (View Transitions)
+        document.getElementById('gallery-lightbox')?.remove();
+
+        const grids = document.querySelectorAll('.image-grid');
+        if (grids.length === 0) return;
+
+        // Create lightbox DOM
+        const lightbox = document.createElement('div');
+        lightbox.id = 'gallery-lightbox';
+        lightbox.className = 'gallery-lightbox';
+        lightbox.innerHTML = `
+          <div class="gallery-lightbox-overlay"></div>
+          <button class="gallery-lightbox-close" aria-label="Close gallery">&times;</button>
+          <button class="gallery-lightbox-prev" aria-label="Previous image">&#8249;</button>
+          <button class="gallery-lightbox-next" aria-label="Next image">&#8250;</button>
+          <div class="gallery-lightbox-content">
+            <img class="gallery-lightbox-img" src="" alt="" />
+            <div class="gallery-lightbox-caption"></div>
+            <div class="gallery-lightbox-counter"></div>
+          </div>
+        `;
+        document.body.appendChild(lightbox);
+
+        const overlay = lightbox.querySelector('.gallery-lightbox-overlay') as HTMLElement;
+        const closeBtn = lightbox.querySelector('.gallery-lightbox-close') as HTMLElement;
+        const prevBtn = lightbox.querySelector('.gallery-lightbox-prev') as HTMLElement;
+        const nextBtn = lightbox.querySelector('.gallery-lightbox-next') as HTMLElement;
+        const lbImg = lightbox.querySelector('.gallery-lightbox-img') as HTMLImageElement;
+        const captionEl = lightbox.querySelector('.gallery-lightbox-caption') as HTMLElement;
+        const counterEl = lightbox.querySelector('.gallery-lightbox-counter') as HTMLElement;
+
+        let currentImages: HTMLImageElement[] = [];
+        let currentIndex = 0;
+
+        function show(images: HTMLImageElement[], index: number) {
+          currentImages = images;
+          currentIndex = index;
+          update();
+          lightbox.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function update() {
+          const img = currentImages[currentIndex];
+          if (!img) return;
+          lbImg.src = img.src;
+          lbImg.alt = img.alt || '';
+          const caption = img.dataset.caption || img.alt || '';
+          captionEl.textContent = caption;
+          captionEl.style.display = caption ? '' : 'none';
+          counterEl.textContent = currentImages.length > 1
+            ? `${currentIndex + 1} / ${currentImages.length}`
+            : '';
+          prevBtn.style.display = currentImages.length > 1 ? '' : 'none';
+          nextBtn.style.display = currentImages.length > 1 ? '' : 'none';
+        }
+
+        function close() {
+          lightbox.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        function prev() {
+          currentIndex = (currentIndex - 1 + currentImages.length) % currentImages.length;
+          update();
+        }
+
+        function next() {
+          currentIndex = (currentIndex + 1) % currentImages.length;
+          update();
+        }
+
+        // Click handlers
+        overlay.addEventListener('click', close);
+        closeBtn.addEventListener('click', close);
+        prevBtn.addEventListener('click', prev);
+        nextBtn.addEventListener('click', next);
+
+        // Keyboard
+        function onKeyDown(e: KeyboardEvent) {
+          if (!lightbox.classList.contains('active')) return;
+          if (e.key === 'Escape') close();
+          else if (e.key === 'ArrowLeft') prev();
+          else if (e.key === 'ArrowRight') next();
+        }
+        document.addEventListener('keydown', onKeyDown);
+
+        // Touch swipe
+        let touchStartX = 0;
+        let touchStartY = 0;
+        lightbox.addEventListener('touchstart', (e) => {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        lightbox.addEventListener('touchend', (e) => {
+          const dx = e.changedTouches[0].clientX - touchStartX;
+          const dy = e.changedTouches[0].clientY - touchStartY;
+          // Only register horizontal swipes (not vertical scrolls)
+          if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+            if (dx < 0) next();
+            else prev();
+          }
+        }, { passive: true });
+
+        // Attach click listeners to grid images
+        grids.forEach((grid) => {
+          const imgs = Array.from(grid.querySelectorAll('img')) as HTMLImageElement[];
+          imgs.forEach((img, i) => {
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              show(imgs, i);
+            });
+          });
+        });
+      }
+
+      function initTocHighlight() {
+        // Clean up previous observer
+        if ((window as any).__tocObserver) {
+          (window as any).__tocObserver.disconnect();
+        }
+
+        const tocLinks = document.querySelectorAll('.toc a') as NodeListOf<HTMLAnchorElement>;
+        if (tocLinks.length === 0) return;
+
+        // Build a map of slug → toc link
+        const slugToLink = new Map<string, HTMLAnchorElement>();
+        tocLinks.forEach(link => {
+          const hash = link.getAttribute('href');
+          if (hash?.startsWith('#')) slugToLink.set(hash.slice(1), link);
+        });
+
+        const headingIds = [...slugToLink.keys()];
+        const headings = headingIds
+          .map(id => document.getElementById(id))
+          .filter(Boolean) as HTMLElement[];
+
+        if (headings.length === 0) return;
+
+        let currentId = headingIds[0];
+
+        function setActive(id: string) {
+          if (id === currentId) return;
+          currentId = id;
+          tocLinks.forEach(link => link.classList.remove('toc-active'));
+          const active = slugToLink.get(id);
+          if (active) active.classList.add('toc-active');
+        }
+
+        // Use IntersectionObserver to track which section is visible
+        const observer = new IntersectionObserver(
+          (entries) => {
+            // Collect all currently-intersecting headings
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                setActive(entry.target.id);
+                return;
+              }
+            }
+            // If none intersecting, find the last heading above the viewport
+            const scrollY = window.scrollY;
+            let best = headings[0];
+            for (const h of headings) {
+              if (h.offsetTop <= scrollY + 120) best = h;
+            }
+            setActive(best.id);
+          },
+          { rootMargin: '-80px 0px -70% 0px', threshold: 0 }
+        );
+
+        headings.forEach(h => observer.observe(h));
+        (window as any).__tocObserver = observer;
+
+        // Set initial active state
+        setActive(headings[0].id);
+      }
+
+      function initAnchorScroll() {
+        const hash = window.location.hash;
+        if (!hash) return;
+
+        const target = document.querySelector(hash);
+        if (!target) return;
+
+        target.scrollIntoView();
+
+        const prose = document.querySelector('.prose');
+        if (!prose) return;
+
+        const imgs = prose.querySelectorAll('img');
+        let pending = 0;
+        imgs.forEach(img => {
+          if (!img.complete) {
+            pending++;
+            const done = () => {
+              pending--;
+              target.scrollIntoView();
+            };
+            img.addEventListener('load', done, { once: true });
+            img.addEventListener('error', done, { once: true });
+          }
+        });
+
+        if (pending === 0) {
+          requestAnimationFrame(() => target.scrollIntoView());
+        }
+      }
+
+      function initExtendedEmbeds() {
+        document.querySelectorAll('[data-ee-type]:not([data-ee-loaded])').forEach(el => {
+          const type = el.getAttribute('data-ee-type');
+          el.setAttribute('data-ee-loaded', 'true');
+          const isDark = document.documentElement.classList.contains('dark');
+          const themeClass = isDark ? 'ee-dark' : 'ee-light';
+
+          if (type === 'bandcamp') {
+            const typeParam = el.getAttribute('data-ee-type-param');
+            const itemId = el.getAttribute('data-ee-item-id');
+            const bg = isDark ? '333333' : 'ffffff';
+            const iframe = document.createElement('iframe');
+            iframe.src = `https://bandcamp.com/EmbeddedPlayer/${typeParam}=${itemId}/size=large/bgcol=${bg}/linkcol=0687f5/tracklist=false/artwork=small/transparent=true/`;
+            iframe.frameBorder = '0'; iframe.loading = 'lazy';
+            iframe.style.cssText = 'width:100%;height:120px;border:none';
+            el.innerHTML = '';
+            el.appendChild(iframe);
+          } else if (type === 'bluesky') {
+            const handle = el.getAttribute('data-ee-handle');
+            const postId = el.getAttribute('data-ee-post-id');
+            const origUrl = el.getAttribute('data-ee-url') || '';
+            fetch(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${handle}`)
+              .then(r=>r.json()).then(profile => {
+                const atUri = `at://${profile.did}/app.bsky.feed.post/${postId}`;
+                return fetch(`https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(atUri)}`);
+              }).then(r=>r.json()).then(res => {
+                const p = res.posts[0]; if(!p) throw new Error('No post');
+                const date = new Date(p.record.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+                const avatar = p.author.avatar ? `<img class="ee-avatar-sm" src="${p.author.avatar}" width="20" height="20" />` : '';
+                const displayName = p.author.displayName ? `<span class="ee-bsky-displayname">${p.author.displayName}</span>` : '';
+                const images = p.embed?.images;
+                const imgHtml = images?.length > 0 ? `<img class="ee-bsky-media" src="${images[0].thumb}" alt="${images[0].alt||''}" loading="lazy" />` : '';
+                const fc = (n: number) => n>=1000?(n/1000).toFixed(1)+'k':''+n;
+                let stats = '';
+                if(p.replyCount>0) stats += `<span class="ee-stat">${fc(p.replyCount)} replies</span>`;
+                if(p.repostCount>0) stats += `<span class="ee-stat">${fc(p.repostCount)} reposts</span>`;
+                if(p.likeCount>0) stats += `<span class="ee-stat">${fc(p.likeCount)} likes</span>`;
+                el.innerHTML = `<div class="ee-card-inner ${themeClass}"><div class="ee-card-header">${avatar}<span class="ee-bsky-author">${displayName}<a class="ee-bsky-handle" href="https://bsky.app/profile/${p.author.handle}" target="_blank">@${p.author.handle}</a></span></div><p class="ee-bsky-text">${p.record.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</p>${imgHtml}<div class="ee-card-footer"><a href="${origUrl}" target="_blank">${date}</a>${stats}</div></div>`;
+              }).catch(() => { el.innerHTML = '<div class="ee-error">Failed to load post</div>'; });
+          } else if (type === 'mastodon') {
+            const instance = el.getAttribute('data-ee-instance');
+            const postId = el.getAttribute('data-ee-post-id');
+            fetch(`https://${instance}/api/v1/statuses/${postId}`).then(r=>r.json()).then(d => {
+              const date = new Date(d.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+              const tmp = document.createElement('div'); tmp.innerHTML = d.content;
+              const paragraphs: string[] = [];
+              const ps = tmp.querySelectorAll('p');
+              if (ps.length > 0) { ps.forEach(p => { const h = p.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,''); const s = document.createElement('span'); s.innerHTML = h; paragraphs.push(s.textContent||''); }); } else { const h = tmp.innerHTML.replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]+>/g,''); const s = document.createElement('span'); s.innerHTML = h; paragraphs.push(s.textContent||''); }
+              const text = paragraphs.join('\n\n').trim();
+              const media = d.media_attachments?.length > 0 && d.media_attachments[0].type === 'image' ? `<img class="ee-masto-media" src="${d.media_attachments[0].preview_url}" alt="${d.media_attachments[0].description||''}" loading="lazy" />` : '';
+              const fc = (n: number) => n>=1000?(n/1000).toFixed(1)+'k':''+n;
+              let stats = '';
+              if(d.replies_count>0) stats += `<span class="ee-stat">${fc(d.replies_count)} replies</span>`;
+              if(d.reblogs_count>0) stats += `<span class="ee-stat">${fc(d.reblogs_count)} boosts</span>`;
+              if(d.favourites_count>0) stats += `<span class="ee-stat">${fc(d.favourites_count)} favorites</span>`;
+              el.innerHTML = `<div class="ee-card-inner ${themeClass}"><div class="ee-card-header"><img class="ee-avatar-sm" src="${d.account.avatar}" width="20" height="20" /><span class="ee-masto-author">${d.account.display_name?'<span class="ee-masto-displayname">'+d.account.display_name+'</span>':''}<a class="ee-masto-handle" href="${d.account.url}" target="_blank">@${d.account.acct}@${instance}</a></span></div><p class="ee-masto-text">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</p>${media}<div class="ee-card-footer"><a href="${d.url}" target="_blank">${date}</a>${stats}</div></div>`;
+            }).catch(() => { el.innerHTML = '<div class="ee-error">Failed to load post</div>'; });
+          }
+        });
+      }
+
+      // After Astro view transitions, the new <audio>/<video> element is
+      // freshly mounted but the in-flight metadata fetch from the previous
+      // page often gets ERR_ABORTED. The new element ends up with duration = 0
+      // and won't play. Explicit .load() forces the browser to fetch again.
+      //
+      // For <video>, we additionally nudge currentTime to 0.01 once metadata
+      // arrives so the browser paints the first frame (acting as a poster) —
+      // otherwise videos with preload="metadata" show as a blank black box.
+      function initMedia() {
+        document.querySelectorAll<HTMLAudioElement>('audio.audio-player').forEach((audio) => {
+          if (audio.dataset.mediaInit === 'true' && audio.readyState >= 1 && audio.duration > 0) return;
+          audio.dataset.mediaInit = 'true';
+          try { audio.load(); } catch {}
+        });
+        document.querySelectorAll<HTMLVideoElement>('video.video-player').forEach((video) => {
+          if (video.dataset.mediaInit === 'true' && video.readyState >= 1 && video.duration > 0) return;
+          video.dataset.mediaInit = 'true';
+          const showFirstFrame = () => {
+            if (video.currentTime === 0 && video.paused && !isNaN(video.duration) && video.duration > 0.02) {
+              try { video.currentTime = 0.01; } catch {}
+            }
+          };
+          video.addEventListener('loadedmetadata', showFirstFrame, { once: true });
+          try { video.load(); } catch {}
+        });
+      }
+
+      function initPage() {
+        initZoom();
+        initCallouts();
+        initScrollToTop();
+        initFootnotes();
+        initMermaid();
+        initTwitter();
+        initVideoEmbeds();
+        initGallery();
+        initExtendedEmbeds();
+        initMedia();
+        initTocHighlight();
+        initAnchorScroll();
+      }
+
+      // astro:page-load fires after each View Transition navigation
+      document.addEventListener('astro:page-load', initPage);
+      // Also run on DOMContentLoaded for reliable initial page load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPage);
+      } else {
+        initPage();
+      }
+      // Dev mode safety: Vite module loading can race with DOM readiness.
+      // Retry once after a frame to catch any elements that weren't ready.
+      requestAnimationFrame(() => requestAnimationFrame(initPage));
+    </script>
+
+    <!-- Custom body-end snippets (injected by consent script when consent enabled, else here) -->
+    {!siteConfig.cookieConsentEnabled && siteConfig.snippets?.bodyEnd?.trim() && (
+      <Fragment set:html={siteConfig.snippets.bodyEnd} />
+    )}
+
+    <!-- Cookie consent: payload (base64) + external script. Uses <template> to avoid Astro script processing. -->
+    {consentPayloadB64 && (
+      <>
+        <template id="axis-snippets-payload">{consentPayloadB64}</template>
+        <script is:inline src="/axis-consent.js" defer></script>
+      </>
+    )}
+  </body>
+</html>

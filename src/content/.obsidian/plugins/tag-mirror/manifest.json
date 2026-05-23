@@ -1,0 +1,11 @@
+{
+	"id": "tag-mirror",
+	"name": "Tag Mirror",
+	"version": "0.0.5",
+	"minAppVersion": "1.11.0",
+	"description": "Sync a designated folder with your vault's tags.",
+	"author": "David V. Kimball",
+	"authorUrl": "https://davidvkimball.com",
+	"fundingUrl": "https://davidvkimball.com/tip",
+	"isDesktopOnly": false
+}

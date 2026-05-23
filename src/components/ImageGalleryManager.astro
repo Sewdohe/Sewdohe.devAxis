@@ -1,0 +1,21 @@
+---
+/**
+ * ImageGalleryManager — wraps around post content and automatically groups
+ * consecutive images into gallery grids. Images already in grids are left alone.
+ *
+ * This is a passthrough component: it renders a slot and relies on CSS classes
+ * already defined in global.css (.image-grid, .image-grid-2, etc.) for layout.
+ *
+ * The remark-image-grids plugin already handles grouping consecutive images
+ * during the markdown processing pipeline, so this component mainly exists
+ * as a mounting point for any additional client-side gallery behavior.
+ */
+
+import { siteConfig } from '@/config';
+
+const galleryEnabled = siteConfig.features.imageGallery;
+---
+
+<div class:list={['gallery-manager', { 'gallery-enabled': galleryEnabled }]}>
+  <slot />
+</div>

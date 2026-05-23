@@ -1,0 +1,195 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import DocsSidebar from '@/components/DocsSidebar.astro';
+import ImageWrapper from '@/components/ImageWrapper.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import FormattedDate from '@/components/FormattedDate.astro';
+import LocalGraph from '@/components/LocalGraph.astro';
+import { getCollection } from 'astro:content';
+import { siteConfig } from '@/config';
+import { hasGraphDataForSlug } from '@/utils/graph-data';
+import type { Doc, Heading } from '@/types';
+
+interface Props {
+  doc: Doc;
+  headings: Heading[];
+  prevDoc?: Doc | null;
+  nextDoc?: Doc | null;
+}
+
+const { doc, headings, prevDoc = null, nextDoc = null } = Astro.props;
+const { title, description, category, image, imageAlt, imageOG, hideCoverImage } = doc.data;
+const updated = doc.data.updated ?? doc.data.lastModified;
+
+function resolveDocImage(imagePath: string, docId: string): string {
+  let clean = imagePath.replace(/^\.\//, '');
+  if (clean.startsWith('images/') || clean.startsWith('attachments/')) {
+    clean = clean.replace(/^(images|attachments)\//, '');
+  }
+  if (!clean.toLowerCase().endsWith('.svg') && !clean.toLowerCase().endsWith('.webp')) {
+    clean = clean.replace(/\.(jpg|jpeg|png|gif|bmp|tiff|tif)$/i, '.webp');
+  }
+  return `/docs/${docId}/${clean}`;
+}
+
+const docsBase = siteConfig.routes?.docsBase || 'docs';
+const ogImage = imageOG && image
+  ? resolveDocImage(image, doc.id)
+  : `/open-graph/${docsBase}/${doc.id}.png`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  name: title,
+  description: description || '',
+  ...(updated ? { dateModified: new Date(updated).toISOString() } : {}),
+};
+
+const allDocs = await getCollection('docs') as unknown as Doc[];
+const visibleDocs = allDocs.filter(d => !d.data.draft);
+
+const tocDepth = siteConfig.features?.tocDepth ?? 3;
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= tocDepth && h.slug !== 'footnote-label');
+const showToc = tocHeadings.length >= 2;
+
+const showGraph =
+  siteConfig.features?.localGraph &&
+  siteConfig.features?.localGraphDocs !== false &&
+  hasGraphDataForSlug(`doc:${doc.id}`);
+---
+
+<BaseLayout title={title} description={description || undefined} ogImage={ogImage} jsonLd={jsonLd}>
+  <div class="layout-docs mx-auto max-w-6xl px-6 py-8">
+    <div class="docs-layout">
+      <!-- Left: Table of contents (page headings) -->
+      <aside class="docs-toc-sidebar">
+        <div class="sticky top-20">
+          <a href="/docs/" class="back-link mb-4">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5H9.5C11.1569 6.5 12.5 7.84315 12.5 9.5V9.5C12.5 11.1569 11.1569 12.5 9.5 12.5H7.5M2.5 6.5L5.5 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Index
+          </a>
+          {showGraph && (
+            <div class="mb-6">
+              <LocalGraph currentSlug={`doc:${doc.id}`} />
+            </div>
+          )}
+          {showToc && <TableOfContents headings={tocHeadings} />}
+        </div>
+      </aside>
+
+      <!-- Center: Content -->
+      <article class="docs-content">
+        <a href="/docs/" class="back-link back-link-mobile animate lg:hidden">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5H9.5C11.1569 6.5 12.5 7.84315 12.5 9.5V9.5C12.5 11.1569 11.1569 12.5 9.5 12.5H7.5M2.5 6.5L5.5 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          All Docs
+        </a>
+        <header class="mb-8 animate">
+          {category && (
+            <span class="text-xs font-medium uppercase tracking-wider block mb-1" style="color: var(--accent);">
+              {category}
+            </span>
+          )}
+          <h1 class="text-2xl font-semibold tracking-tight mb-2">{title}</h1>
+          {updated && (
+            <p class="text-xs animate" style="color: var(--muted);">
+              Last modified <FormattedDate date={new Date(updated)} />
+            </p>
+          )}
+        </header>
+        {image && hideCoverImage !== true && (
+          <div class="post-cover-hero animate">
+            <ImageWrapper
+              src={resolveDocImage(image, doc.id)}
+              alt={imageAlt || title || 'Documentation cover'}
+              class="post-cover-hero__img"
+              loading="eager"
+              decoding="async"
+            />
+          </div>
+        )}
+        <div class="prose prose-neutral dark:prose-invert max-w-none animate">
+          <slot />
+        </div>
+
+        {(prevDoc || nextDoc) && (
+          <nav class="mt-8 pt-8 border-t animate" style="border-color: var(--border);">
+            <div class="flex justify-between gap-4">
+              {prevDoc ? (
+                <a href={`/docs/${prevDoc.id}/`} class="group flex-1 min-w-0">
+                  <span class="text-xs block mb-1" style="color: var(--muted);">Previous</span>
+                  <span class="text-sm group-hover:opacity-70 transition-opacity truncate block" style="color: var(--text);">{prevDoc.data.title}</span>
+                </a>
+              ) : <div class="flex-1" />}
+              {nextDoc ? (
+                <a href={`/docs/${nextDoc.id}/`} class="group flex-1 min-w-0 text-right">
+                  <span class="text-xs block mb-1" style="color: var(--muted);">Next</span>
+                  <span class="text-sm group-hover:opacity-70 transition-opacity truncate block" style="color: var(--text);">{nextDoc.data.title}</span>
+                </a>
+              ) : <div class="flex-1" />}
+            </div>
+          </nav>
+        )}
+      </article>
+
+      <!-- Right: Docs navigation -->
+      <aside class="docs-nav-sidebar">
+        <div class="sticky top-20">
+          <DocsSidebar docs={visibleDocs} currentSlug={doc.id} />
+        </div>
+      </aside>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .docs-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .docs-toc-sidebar {
+    display: none;
+  }
+
+  .docs-nav-sidebar {
+    display: none;
+  }
+
+  @media (min-width: 1024px) {
+    .docs-layout {
+      grid-template-columns: 12rem 1fr 13rem;
+    }
+
+    .docs-toc-sidebar {
+      display: block;
+      min-width: 12rem;
+    }
+
+    .docs-nav-sidebar {
+      display: block;
+      min-width: 13rem;
+    }
+  }
+
+  .docs-content {
+    min-width: 0;
+  }
+
+  .post-cover-hero {
+    margin-bottom: 2rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background-color: var(--border);
+    aspect-ratio: 16 / 9;
+    max-height: 480px;
+  }
+
+  .post-cover-hero__img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+</style>

@@ -1,0 +1,97 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import { getCollection, getEntry, render } from 'astro:content';
+import { siteConfig } from '@/config';
+import type { Doc } from '@/types';
+
+if (!siteConfig.contentTypes.docs) {
+  return Astro.redirect('/404/');
+}
+
+const allDocs = await getCollection('docs') as unknown as Doc[];
+const docs = allDocs.filter(d => !d.data.draft);
+
+const grouped = new Map<string, Doc[]>();
+const uncategorized: Doc[] = [];
+docs.forEach(doc => {
+  const cat = doc.data.category || '';
+  if (cat) {
+    if (!grouped.has(cat)) grouped.set(cat, []);
+    grouped.get(cat)!.push(doc);
+  } else {
+    uncategorized.push(doc);
+  }
+});
+for (const [, items] of grouped) {
+  items.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
+}
+uncategorized.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
+const sortedCategories = [...grouped.keys()].sort();
+
+let docsTitle = 'Documentation';
+let docsDescription = 'Documentation and guides.';
+let DocsBlurbContent: any = null;
+try {
+  const specialId = siteConfig.routes?.docsBase || 'docs';
+  const docsPage =
+    (await getEntry('special', specialId)) ||
+    (specialId !== 'docs' ? await getEntry('special', 'docs') : null);
+  if (docsPage) {
+    docsTitle = docsPage.data.title || docsTitle;
+    docsDescription = docsPage.data.description || docsDescription;
+    const { Content } = await render(docsPage);
+    DocsBlurbContent = Content;
+  }
+} catch {}
+---
+
+<BaseLayout title={docsTitle} description={docsDescription} ogImage={`/open-graph/${siteConfig.routes?.docsBase || 'docs'}.png`}>
+  <Container>
+    <section class="py-8">
+      <h1 class="text-2xl font-semibold tracking-tight mb-6 animate">{docsTitle}</h1>
+      {DocsBlurbContent && (
+        <div class="mb-8 prose prose-sm max-w-none animate" style="color: var(--muted);">
+          <DocsBlurbContent />
+        </div>
+      )}
+
+      {docs.length === 0 ? (
+        <p class="animate" style="color: var(--muted);">No docs yet. Add markdown files to <code>src/content/docs/</code>.</p>
+      ) : (
+        <div class="space-y-8 animate">
+          {sortedCategories.map(cat => (
+            <div>
+              <h2 class="text-sm font-semibold uppercase tracking-wider mb-3" style="color: var(--muted);">
+                {cat}
+              </h2>
+              <div class="space-y-2">
+                {grouped.get(cat)!.map(doc => (
+                  <a href={`/docs/${doc.id}/`} class="doc-card block">
+                    <h3 class="doc-card__title">{doc.data.title}</h3>
+                    {doc.data.description && (
+                      <p class="doc-card__desc">{doc.data.description}</p>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {uncategorized.length > 0 && (
+            <div class="space-y-2">
+              {uncategorized.map(doc => (
+                <a href={`/docs/${doc.id}/`} class="doc-card block">
+                  <h3 class="doc-card__title">{doc.data.title}</h3>
+                  {doc.data.description && (
+                    <p class="doc-card__desc">{doc.data.description}</p>
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  </Container>
+</BaseLayout>

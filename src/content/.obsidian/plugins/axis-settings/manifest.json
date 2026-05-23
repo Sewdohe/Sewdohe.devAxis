@@ -1,0 +1,10 @@
+{
+	"id": "axis-settings",
+	"name": "Axis Settings",
+	"version": "0.1.6",
+	"minAppVersion": "1.11.0",
+	"description": "Configuration and onboarding for the Axis Astro theme.",
+	"author": "David V. Kimball",
+	"authorUrl": "https://davidvkimball.com",
+	"isDesktopOnly": true
+}

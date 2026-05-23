@@ -1,0 +1,37 @@
+---
+/**
+ * ImageGallery — wraps a set of images in a responsive grid with lightbox support.
+ * Used by ImageGalleryManager to auto-detect consecutive images in post content.
+ *
+ * Usage (manual):
+ *   <ImageGallery images={[{src: '/img/a.jpg', alt: 'A'}]} columns={2} />
+ *
+ * The lightbox is handled by the gallery code in BaseLayout.astro.
+ * Kept as <img> so lightbox can read data-caption from the element.
+ */
+
+interface GalleryImage {
+  src: string;
+  alt?: string;
+  caption?: string;
+}
+
+interface Props {
+  images: GalleryImage[];
+  columns?: number;
+}
+
+const { images, columns } = Astro.props;
+const cols = columns || Math.min(images.length, 3);
+---
+
+<div class={`image-grid image-grid-${cols}`}>
+  {images.map(img => (
+    <img
+      src={img.src}
+      alt={img.alt || ''}
+      data-caption={img.caption || img.alt || ''}
+      loading="lazy"
+    />
+  ))}
+</div>

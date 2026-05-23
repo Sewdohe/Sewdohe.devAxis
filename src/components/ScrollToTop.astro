@@ -1,0 +1,42 @@
+---
+---
+<button
+  id="scroll-to-top"
+  aria-label="Scroll to top"
+  class="scroll-to-top"
+>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m4.5 15.75 7.5-7.5 7.5 7.5"/>
+  </svg>
+</button>
+
+<style>
+  .scroll-to-top {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    /* 44×44px — meets WCAG 2.5.5 AAA touch target size */
+    width: 2.75rem;
+    height: 2.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    z-index: 40;
+  }
+
+  .scroll-to-top:hover {
+    color: var(--text);
+    border-color: var(--muted);
+  }
+
+  .scroll-to-top.visible {
+    opacity: 1;
+  }
+</style>

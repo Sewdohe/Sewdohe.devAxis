@@ -1,0 +1,37 @@
+---
+import PostLayout from '@/layouts/PostLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { shouldShowPost, sortPostsByDate } from '@/utils/markdown';
+import type { Post } from '@/types';
+import readingTime from 'reading-time';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('posts') as unknown as Post[];
+  const posts = allPosts.filter(shouldShowPost);
+  const sorted = sortPostsByDate(posts);
+
+  return sorted.map((post, index) => ({
+    params: { slug: post.id },
+    props: {
+      post,
+      prevPost: sorted[index + 1] || null,
+      nextPost: sorted[index - 1] || null,
+    },
+  }));
+}
+
+const { post, prevPost, nextPost } = Astro.props;
+const { Content, headings } = await render(post as any);
+const stats = readingTime(post.body || '');
+const minutes = Math.max(1, Math.round(stats.minutes));
+---
+
+<PostLayout
+  post={post}
+  headings={headings}
+  readingMinutes={minutes}
+  prevPost={prevPost}
+  nextPost={nextPost}
+>
+  <Content />
+</PostLayout>

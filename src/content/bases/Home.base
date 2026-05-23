@@ -1,0 +1,202 @@
+defaultView: Posts
+filters:
+  and:
+    - file.ext == "md"
+formulas:
+  Slug: |-
+    (
+      if(file.folder == "posts", "/posts/" + file.name.replace(".md", ""), 
+        if(file.folder == "projects", "/projects/" + file.name.replace(".md", ""), 
+          if(file.folder == "docs", "/docs/" + file.name.replace(".md", ""), 
+            ("/" + file.folder + "/" + file.name.replace(".md", "")).replace("/pages/index", "/").replace("/pages/", "/").replace("/special/index", "/").replace("/special/", "/").replace("/home", "/").replace("/index", "")
+          )
+        )
+      ) + "/"
+    ).replace("//", "/")
+  Content Folder: |-
+    if(file.name == "index",
+      if(file.folder != "",
+        if(file.folder.replace("/" + file.folder.replace(/.*\//, ""), "") != "",
+          file.folder.replace("/" + file.folder.replace(/.*\//, ""), ""),
+          file.folder
+        ),
+        "root"
+      ),
+      if(file.folder != "",
+        file.folder,
+        "root"
+      )
+    )
+properties:
+  file.fullname:
+    displayName: Full File Name
+  file.name:
+    displayName: File Name
+  formula.Slug:
+    displayName: Path
+  note.date:
+    displayName: Date
+  note.description:
+    displayName: Description
+  note.draft:
+    displayName: Draft
+  note.image:
+    displayName: Image
+  note.lastModified:
+    displayName: LastModified
+  note.pubDate:
+    displayName: Date
+  note.published:
+    displayName: Published
+  note.tags:
+    displayName: Tags
+  note.title:
+    displayName: Title
+views:
+  - type: cms
+    name: Posts
+    filters:
+      and:
+        - file.folder.startsWith("posts")
+    sort:
+      - property: published
+        direction: DESC
+    imageFormat: cover
+    showDate: true
+    customizeNewButton: true
+    newNoteLocation: posts
+    fallbackToEmbeds: never
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.published
+    descriptionProperty: note.description
+    imageProperty: note.image
+    showTags: true
+    tagsProperty: note.tags
+    showDraftStatus: true
+    draftStatusProperty: note.draft
+    draftStatusReverse: false
+  - type: cms
+    name: Docs
+    filters:
+      and:
+        - file.folder.startsWith("docs")
+    groupBy:
+      property: category
+      direction: ASC
+    sort:
+      - property: order
+        direction: ASC
+    imageFormat: cover
+    showDate: true
+    customizeNewButton: true
+    newNoteLocation: docs
+    fallbackToEmbeds: never
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.lastModified
+    descriptionProperty: note.description
+    showTags: false
+    showDraftStatus: true
+    draftStatusProperty: note.draft
+    draftStatusReverse: false
+    imageProperty: note.image
+  - type: cms
+    name: Pages
+    filters:
+      and:
+        - file.folder.startsWith("pages")
+    sort:
+      - property: file.ctime
+        direction: DESC
+    imageFormat: cover
+    showDate: true
+    customizeNewButton: true
+    newNoteLocation: pages
+    fallbackToEmbeds: never
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: file.ctime
+    descriptionProperty: note.description
+    showTags: false
+    showDraftStatus: true
+    draftStatusProperty: note.draft
+    draftStatusReverse: false
+  - type: cms
+    name: Projects
+    filters:
+      and:
+        - file.folder.startsWith("projects")
+    sort:
+      - property: date
+        direction: DESC
+    imageFormat: cover
+    showDate: true
+    customizeNewButton: true
+    newNoteLocation: projects
+    fallbackToEmbeds: never
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.date
+    descriptionProperty: note.description
+    imageProperty: note.image
+    showTags: false
+    showDraftStatus: true
+    draftStatusProperty: note.draft
+    draftStatusReverse: false
+  - type: cms
+    name: Special Pages
+    filters:
+      and:
+        - file.folder.startsWith("special")
+    sort:
+      - property: file.ctime
+        direction: DESC
+    imageFormat: cover
+    showDate: true
+    customizeNewButton: true
+    newNoteLocation: special
+    fallbackToEmbeds: never
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: file.ctime
+    descriptionProperty: note.description
+    showTags: false
+    showDraftStatus: false
+  - type: cms
+    name: All Content
+    filters:
+      and:
+        - '!file.folder.startsWith("redirects")'
+        - '!file.folder.startsWith("tags")'
+    groupBy:
+      property: formula.Content Folder
+      direction: ASC
+    sort:
+      - property: title
+        direction: ASC
+    imageFormat: cover
+    showDate: true
+    customizeNewButton: true
+    newNoteLocation: docs
+    fallbackToEmbeds: never
+    propertyDisplay1: formula.Slug
+    showTextPreview: true
+    propertyLabels: above
+    titleProperty: note.title
+    dateProperty: note.lastModified
+    descriptionProperty: note.description
+    showTags: false
+    showDraftStatus: true
+    draftStatusProperty: note.draft
+    draftStatusReverse: false

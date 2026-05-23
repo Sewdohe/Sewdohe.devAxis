@@ -1,0 +1,303 @@
+---
+import { siteConfig } from '@/config';
+import { heroSvg, socialIconSvg, pageIconSvg } from '@/utils/icons';
+import { themes } from '@/themes/index';
+
+// Generate icons for pinned pages from config only (user controls what appears)
+const pageItems = siteConfig.pages.map(page => {
+  const isExternal = page.url.startsWith('http');
+  const iconName = (page as any).icon || '';
+  const url = page.url.endsWith('/') || page.url === '/' || isExternal ? page.url : `${page.url}/`;
+  return {
+    title: page.title,
+    url,
+    iconSvg: pageIconSvg(iconName, isExternal, { size: 16 }),
+    isExternal,
+  };
+});
+
+// Generate icons for pinned social links from navigation.social
+const socialPinned = (siteConfig.navigation?.social ?? []).map(link => ({
+  name: link.title,
+  url: link.url,
+  iconSvg: socialIconSvg(link.icon || link.title, { size: 16 }),
+}));
+
+// Default icons for client-side search results (with opacity for subtlety)
+const defaultIconsJson = JSON.stringify({
+  post: heroSvg('square-pen', { size: 16, class: 'shrink-0', style: 'opacity:0.5' }),
+  page: heroSvg('file', { size: 16, class: 'shrink-0', style: 'opacity:0.5' }),
+  external: heroSvg('external-link', { size: 16, class: 'shrink-0', style: 'opacity:0.5' }),
+});
+const showActions = siteConfig.commandPaletteActions !== false;
+const showPages = siteConfig.commandPalettePages !== false;
+const showSocial = siteConfig.commandPaletteSocial !== false;
+const showGraphAction = siteConfig.graphEnabled !== false && siteConfig.graphInCommandPalette !== false;
+const paletteShortcut = siteConfig.commandPaletteShortcut || 'k';
+
+// Hide “Switch theme” if only default theme is available
+const allThemeNames = Object.keys(themes);
+let availableThemes: string[];
+if (siteConfig.availableThemes === 'all') availableThemes = allThemeNames;
+else if (Array.isArray(siteConfig.availableThemes)) availableThemes = siteConfig.availableThemes;
+else availableThemes = allThemeNames;
+const defaultTheme = siteConfig.theme || 'axis';
+const hasThemeChoices = availableThemes.filter(t => t !== defaultTheme).length > 0;
+---
+
+<div data-command-dialog>
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" data-command-dialog-overlay hidden></div>
+  <div class="fixed inset-0 z-50 overflow-hidden border-0 bg-[var(--bg)] sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-[var(--border)] sm:shadow-lg" data-command-dialog-content hidden>
+    <div class="flex h-full w-full flex-col overflow-hidden sm:rounded-lg bg-popover text-popover-foreground" data-command>
+      <div style="position: relative;">
+        <div class="flex items-center gap-2 border-b px-3">
+          <svg class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+          <input
+            type="text"
+            data-command-input
+            role="combobox"
+            aria-expanded="true"
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            class="flex h-10 w-full border-0 bg-transparent text-sm outline-none focus:ring-0 placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            placeholder="Search everything"
+            aria-label="Search everything"
+          />
+        </div>
+        <div style="position: absolute; right: 0.75rem; top: 0; bottom: 0; display: flex; align-items: center; gap: 0.5rem;">
+          <div id="command-mode-hint" class="hidden sm:flex" style="cursor: pointer; align-items: center;">
+            <kbd style="font-size: 0.6875rem; padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-family: inherit; line-height: 1.2; opacity: 0.7; transition: border-color 0.15s ease, color 0.15s ease;" onmouseenter="this.style.borderColor='var(--muted)';this.style.color='var(--text)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">Tab</kbd>
+          </div>
+          <button type="button" data-command-close class="sm:hidden flex items-center justify-center" style="color: var(--muted); background: none; border: none; padding: 4px; cursor: pointer;" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-y-auto overflow-x-hidden flex-1 sm:max-h-80" data-command-list role="listbox" aria-label="Suggestions">
+        <div class="py-6 text-center text-sm text-muted-foreground" data-command-empty hidden>No results found.</div>
+
+        <!-- Pinned static list (visible when no query) -->
+        {showActions && <div class="overflow-hidden p-1 text-foreground" data-command-group id="command-group-actions">
+          <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Actions</div>
+          <div class="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground" data-command-item data-value="toggle-theme" data-action="toggle-theme" role="option" aria-selected="false" id="theme-toggle-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="dark:hidden"><path d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="hidden dark:block"><path d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></svg>
+            <span>Toggle dark mode</span>
+          </div>
+          {hasThemeChoices && (
+            <div class="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground" data-command-item data-value="switch-theme" data-action="switch-theme" role="option" aria-selected="false" id="switch-theme-item">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z"/></svg>
+              <span>Switch theme</span>
+            </div>
+          )}
+          {showGraphAction && <div class="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground" data-command-item data-value="graph-view" data-action="graph-view" role="option" aria-selected="false" id="graph-view-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9"/><path d="M12 12v3"/></svg>
+            <span>Graph view</span>
+          </div>}
+        </div>}
+
+        {showPages && <>
+        <div class="-mx-1 h-px bg-border" data-command-separator id="pinned-sep-1"></div>
+
+        <div class="overflow-hidden p-1 text-foreground" data-command-group id="command-group-pinned-pages">
+          <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pages</div>
+          {pageItems.map((page) => (
+            <div class:list={["relative flex select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none", page.url?.trim() ? "cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground" : "opacity-60"]} data-command-item data-value={page.title} {...(page.url?.trim() ? { "data-href": page.url } : {})} data-external={page.isExternal ? "true" : undefined} role="option" aria-selected="false">
+              <Fragment set:html={page.iconSvg} />
+              <span>{page.title}</span>
+            </div>
+          ))}
+        </div>
+        </>}
+
+        {showSocial && socialPinned.length > 0 && (
+          <>
+            <div class="-mx-1 h-px bg-border" data-command-separator id="pinned-sep-2"></div>
+            <div class="overflow-hidden p-1 text-foreground" data-command-group id="command-group-pinned-social">
+              <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Social</div>
+              {socialPinned.map((social) => (
+                <div class:list={["relative flex select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none", social.url?.trim() ? "cursor-pointer hover:bg-accent hover:text-accent-foreground data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground" : "opacity-60"]} data-command-item data-value={social.name} {...(social.url?.trim() ? { "data-href": social.url } : {})} data-external="true" role="option" aria-selected="false">
+                  <Fragment set:html={social.iconSvg} />
+                  <span>{social.name}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <!-- Dynamic search results (visible when query is entered) -->
+        <div class="overflow-hidden p-1 text-foreground hidden" data-command-group id="command-group-mixed">
+          <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Results</div>
+          <div id="command-mixed-list"></div>
+        </div>
+
+        <div class="overflow-hidden p-1 text-foreground hidden" data-command-group id="command-group-posts">
+          <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Posts</div>
+          <div id="command-posts-list"></div>
+        </div>
+
+        <div class="overflow-hidden p-1 text-foreground hidden" data-command-group id="command-group-pages">
+          <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pages</div>
+          <div id="command-pages-list"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  // Theme toggle list item - standalone, no module dependencies
+  function bindThemeToggleItem() {
+    var btn = document.getElementById('theme-toggle-item');
+    if (!btn || btn.dataset.themeBound) return;
+    btn.dataset.themeBound = 'true';
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      var html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+      // Reapply color theme for the new mode
+      if (window.__axisApplyTheme) {
+        var t = localStorage.getItem('selectedTheme') || window.__axisDefaultTheme || 'axis';
+        window.__axisApplyTheme(t);
+      }
+      // Close palette
+      var overlay = document.querySelector('[data-command-dialog-overlay]');
+      var content = document.querySelector('[data-command-dialog-content]');
+      if (overlay) { overlay.classList.remove('dialog-open'); overlay.classList.add('dialog-closing'); }
+      if (content) { content.classList.remove('dialog-open'); content.classList.add('dialog-closing'); }
+      setTimeout(function() {
+        if (overlay) { overlay.hidden = true; overlay.classList.remove('dialog-closing'); }
+        if (content) { content.hidden = true; content.classList.remove('dialog-closing'); }
+      }, 100);
+      document.body.style.overflow = '';
+    });
+  }
+  bindThemeToggleItem();
+  document.addEventListener('astro:page-load', bindThemeToggleItem);
+
+  // Switch Theme action - opens the theme selector modal
+  function bindSwitchThemeItem() {
+    var btn = document.getElementById('switch-theme-item');
+    if (!btn || btn.dataset.stBound) return;
+    btn.dataset.stBound = 'true';
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      // Close palette first
+      var overlay = document.querySelector('[data-command-dialog-overlay]');
+      var content = document.querySelector('[data-command-dialog-content]');
+      if (overlay) { overlay.classList.remove('dialog-open'); overlay.classList.add('dialog-closing'); }
+      if (content) { content.classList.remove('dialog-open'); content.classList.add('dialog-closing'); }
+      setTimeout(function() {
+        if (overlay) { overlay.hidden = true; overlay.classList.remove('dialog-closing'); }
+        if (content) { content.hidden = true; content.classList.remove('dialog-closing'); }
+        document.body.style.overflow = '';
+        // Open theme selector
+        if (window.__openThemeSelector) window.__openThemeSelector();
+      }, 100);
+    });
+  }
+  bindSwitchThemeItem();
+  document.addEventListener('astro:page-load', bindSwitchThemeItem);
+</script>
+
+<script is:inline>
+  // Inline fallback: ensures Ctrl+K and trigger click work even if module script stalls
+  (function() {
+    function getEls() {
+      var dialog = document.querySelector('[data-command-dialog]');
+      if (!dialog) return null;
+      return {
+        overlay: dialog.querySelector('[data-command-dialog-overlay]'),
+        content: dialog.querySelector('[data-command-dialog-content]'),
+        input: dialog.querySelector('[data-command-input]')
+      };
+    }
+    function isOpen() {
+      var els = getEls();
+      return els && els.overlay && !els.overlay.hidden;
+    }
+    function openCmd() {
+      var els = getEls();
+      if (!els) return;
+      if (els.overlay) { els.overlay.hidden = false; els.overlay.classList.remove('dialog-closing'); els.overlay.classList.add('dialog-open'); }
+      if (els.content) { els.content.hidden = false; els.content.classList.remove('dialog-closing'); els.content.classList.add('dialog-open'); if (els.input) els.input.focus(); }
+      document.body.style.overflow = 'hidden';
+    }
+    function closeCmd() {
+      var els = getEls();
+      if (!els) return;
+      if (els.overlay) { els.overlay.classList.remove('dialog-open'); els.overlay.classList.add('dialog-closing'); }
+      if (els.content) { els.content.classList.remove('dialog-open'); els.content.classList.add('dialog-closing'); }
+      setTimeout(function() {
+        if (els.overlay) { els.overlay.hidden = true; els.overlay.classList.remove('dialog-closing'); }
+        if (els.content) { els.content.hidden = true; els.content.classList.remove('dialog-closing'); }
+      }, 100);
+      document.body.style.overflow = '';
+      if (els.input) els.input.value = '';
+    }
+    function bindTriggerInline() {
+      var trigger = document.getElementById('command-palette-trigger');
+      if (!trigger || trigger.dataset.inlineCmdBound) return;
+      trigger.dataset.inlineCmdBound = 'true';
+      trigger.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isOpen()) closeCmd(); else openCmd();
+      });
+    }
+    // Mobile close button
+    function bindCloseBtn() {
+      var closeBtn = document.querySelector('[data-command-close]');
+      if (!closeBtn || closeBtn.dataset.closeBound) return;
+      closeBtn.dataset.closeBound = 'true';
+      closeBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeCmd();
+      });
+    }
+    bindCloseBtn();
+    document.addEventListener('astro:page-load', bindCloseBtn);
+
+    bindTriggerInline();
+    if (!window.__cmdPaletteInlineKbd) {
+      window.__cmdPaletteInlineKbd = true;
+      document.addEventListener('keydown', function(e) {
+        if (window.__cmdPaletteModuleReady) return;
+        var shortcutKey = window.__cmdPaletteShortcut || 'k';
+        if ((e.metaKey || e.ctrlKey) && e.key === shortcutKey) {
+          e.preventDefault();
+          if (isOpen()) closeCmd(); else openCmd();
+        }
+        if (e.key === 'Escape' && isOpen()) closeCmd();
+      });
+    }
+    document.addEventListener('astro:page-load', bindTriggerInline);
+  })();
+</script>
+
+<script is:inline define:vars={{ defaultIconsJson, paletteShortcut }}>
+  try { window.__cmdDefaults = JSON.parse(defaultIconsJson); }
+  catch (e) { window.__cmdDefaults = {}; console.warn('[cmd] Failed to parse default icons:', e); }
+  window.__cmdPaletteShortcut = paletteShortcut;
+</script>
+
+<script>
+  // Module script extracted to separate file to prevent Vite HMR cache issues.
+  // When this .astro template changes, Vite won't recompile the script since
+  // it lives in its own file. This prevents the recurring stale-cache bug
+  // where the module script stops working after template modifications.
+  import '../scripts/command-palette';
+</script>

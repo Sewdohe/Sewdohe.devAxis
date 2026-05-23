@@ -1,0 +1,39 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import { getEntry, render } from 'astro:content';
+
+let NotFoundContent: any = null;
+let notFoundDescription = 'Page not found.';
+try {
+  const notFoundPage = await getEntry('special', '404');
+  if (notFoundPage) {
+    const { Content } = await render(notFoundPage);
+    NotFoundContent = Content;
+    if (notFoundPage.data.description) {
+      notFoundDescription = notFoundPage.data.description;
+    }
+  }
+} catch (error) {}
+---
+
+<BaseLayout title="404 - page not found." description={notFoundDescription} noIndex={true}>
+  <Container>
+    <section class="py-24 text-center">
+      <h1 class="text-4xl font-bold mb-4">404</h1>
+      {NotFoundContent ? (
+        <div class="prose prose-sm max-w-none" style="color: var(--muted);">
+          <NotFoundContent />
+        </div>
+      ) : (
+        <p style="color: var(--muted);">{notFoundDescription}</p>
+      )}
+      <a
+        href="/"
+        class="inline-block mt-6 text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
+      >
+        Go home
+      </a>
+    </section>
+  </Container>
+</BaseLayout>

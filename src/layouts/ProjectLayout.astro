@@ -1,0 +1,165 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import LocalGraph from '@/components/LocalGraph.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import ImageWrapper from '@/components/ImageWrapper.astro';
+import { siteConfig } from '@/config';
+import { hasGraphDataForSlug } from '@/utils/graph-data';
+import type { Project, Heading } from '@/types';
+
+interface Props {
+  project: Project;
+  headings: Heading[];
+}
+
+const { project, headings } = Astro.props;
+const { title, description, date, tags, status, repositoryUrl, projectUrl, image, imageAlt, imageOG, hideCoverImage } = project.data;
+
+function resolveProjectImage(imagePath: string, projectId: string): string {
+  let clean = imagePath.replace(/^\.\//, '');
+  if (clean.startsWith('images/') || clean.startsWith('attachments/')) {
+    clean = clean.replace(/^(images|attachments)\//, '');
+  }
+  if (!clean.toLowerCase().endsWith('.svg') && !clean.toLowerCase().endsWith('.webp')) {
+    clean = clean.replace(/\.(jpg|jpeg|png|gif|bmp|tiff|tif)$/i, '.webp');
+  }
+  return `/projects/${projectId}/${clean}`;
+}
+
+const projectsBase = siteConfig.routes?.projectsBase || 'projects';
+const ogImage = imageOG && image
+  ? resolveProjectImage(image, project.id)
+  : `/open-graph/${projectsBase}/${project.id}.png`;
+
+const statusLabels: Record<string, string> = {
+  active: 'Active',
+  wip: 'In Progress',
+  archived: 'Archived',
+};
+
+const statusColors: Record<string, string> = {
+  active: 'background-color: rgba(22, 163, 74, 0.1); color: #16a34a; border: 1px solid rgba(22, 163, 74, 0.2);',
+  wip: 'background-color: rgba(217, 119, 6, 0.1); color: #d97706; border: 1px solid rgba(217, 119, 6, 0.2);',
+  archived: 'background-color: rgba(107, 114, 128, 0.1); color: var(--muted); border: 1px solid var(--border);',
+};
+
+const showGraph =
+  siteConfig.features?.localGraph &&
+  siteConfig.features?.localGraphProjects !== false &&
+  hasGraphDataForSlug(`project:${project.id}`);
+
+const hideTOC = project.data.hideTOC;
+const maxDepth = siteConfig.features?.tocDepth ?? 3;
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= maxDepth);
+const showToc = !hideTOC && siteConfig.features?.tableOfContents !== false && tocHeadings.length >= 2;
+---
+
+<BaseLayout title={title} description={description || undefined} ogImage={ogImage}>
+  <Container>
+    <article class="py-8">
+      <a href="/projects/" class="back-link back-link-mobile animate">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5H9.5C11.1569 6.5 12.5 7.84315 12.5 9.5V9.5C12.5 11.1569 11.1569 12.5 9.5 12.5H7.5M2.5 6.5L5.5 9.5M2.5 6.5L5.5 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Index
+      </a>
+      <header class="mb-8 animate">
+        <div class="flex items-center gap-3 mb-2 flex-wrap">
+          <h1 class="text-2xl font-semibold tracking-tight">{title}</h1>
+          {status && (
+            <span
+              class="text-xs font-medium px-2 py-0.5 rounded-full"
+              style={statusColors[status] || ''}
+            >
+              {statusLabels[status] || status}
+            </span>
+          )}
+        </div>
+        {description && (
+          <p class="text-sm mb-3" style="color: var(--muted);">{description}</p>
+        )}
+        <div class="flex items-center gap-3 flex-wrap">
+          {repositoryUrl && (
+            <a
+              href={repositoryUrl}
+              target="_blank"
+
+              class="btn-accent text-xs gap-1"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></svg>
+              Source
+            </a>
+          )}
+          {projectUrl && (
+            <a
+              href={projectUrl}
+              target="_blank"
+
+              class="btn-accent text-xs gap-1"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+              Demo
+            </a>
+          )}
+        </div>
+      </header>
+
+      {image && hideCoverImage !== true && (
+        <div class="post-cover-hero animate">
+          <ImageWrapper
+            src={resolveProjectImage(image, project.id)}
+            alt={imageAlt || title || 'Project cover'}
+            class="post-cover-hero__img"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+      )}
+
+      <div class="prose prose-neutral dark:prose-invert max-w-none animate">
+        <slot />
+      </div>
+
+      {tags && tags.length > 0 && (
+        <div class="mt-8 pt-4 border-t animate" style="border-color: var(--border);">
+          <div class="flex flex-wrap gap-2">
+            {tags.map(tag => (
+              <span class="inline-tag">{tag}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </article>
+  </Container>
+
+  <div class="toc-sidebar animate">
+    <a href="/projects/" class="back-link">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5H9.5C11.1569 6.5 12.5 7.84315 12.5 9.5V9.5C12.5 11.1569 11.1569 12.5 9.5 12.5H7.5M2.5 6.5L5.5 9.5M2.5 6.5L5.5 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Index
+    </a>
+    {showGraph && (
+      <div class="mt-6">
+        <LocalGraph currentSlug={`project:${project.id}`} />
+      </div>
+    )}
+    {showToc && <TableOfContents headings={tocHeadings} />}
+  </div>
+</BaseLayout>
+
+<style>
+  .post-cover-hero {
+    margin-bottom: 2rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    background-color: var(--border);
+    aspect-ratio: 16 / 9;
+    max-height: 480px;
+  }
+
+  .post-cover-hero__img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+</style>

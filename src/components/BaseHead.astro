@@ -1,0 +1,211 @@
+---
+import '@/styles/global.css';
+import { Font } from 'astro:assets';
+import { ClientRouter } from 'astro:transitions';
+import { siteConfig, getGoogleFontsUrl, getFontFamily, ensureCanonicalUrl } from '@/config';
+import { generateThemeCSS } from '@/themes/apply-theme';
+
+const isLocal = siteConfig.fonts.source === 'local';
+const isCdn = siteConfig.fonts.source === 'cdn';
+const isAstro = siteConfig.fonts.source === 'astro';
+
+// @fontsource imports (only used when source === 'local')
+if (isLocal) {
+  await import('@fontsource-variable/plus-jakarta-sans');
+  await import('@fontsource/merriweather');
+  await import('@fontsource/jetbrains-mono');
+}
+const googleFontsUrl = isCdn ? getGoogleFontsUrl() : '';
+const bodyFont = getFontFamily(siteConfig.fonts.families.body);
+const headingFont = getFontFamily(siteConfig.fonts.families.heading);
+const monoFont = getFontFamily(siteConfig.fonts.families.mono);
+const contentWidth = siteConfig.layout?.contentWidth ?? '680px';
+const defaultThemeCss = generateThemeCSS(siteConfig.theme || 'axis');
+
+interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+  ogType?: string;
+  canonicalUrl?: string;
+  noIndex?: boolean;
+  publishedTime?: string;
+  tags?: string[];
+  jsonLd?: Record<string, any>;
+  isHome?: boolean;
+}
+
+const {
+  title = siteConfig.title,
+  description = siteConfig.description,
+  ogImage = '/open-graph/index.png',
+  ogType = 'website',
+  canonicalUrl = Astro.url.href,
+  noIndex = false,
+  publishedTime,
+  tags,
+  jsonLd,
+  isHome,
+} = Astro.props;
+
+const fullTitle = isHome || title === siteConfig.title ? title : `${title} | ${siteConfig.title}`;
+const ogImageUrl = ogImage.startsWith('http') ? ogImage : new URL(ogImage, siteConfig.site).href;
+const canonicalUrlNormalized = ensureCanonicalUrl(canonicalUrl);
+const GOATCOUNTER_CODE = (siteConfig.analytics?.goatcounterCode ?? '').trim();
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="generator" content={Astro.generator} />
+
+<!-- Default color theme CSS variables (override global.css defaults before first paint) -->
+<style set:html={defaultThemeCss}></style>
+
+<!-- SEO -->
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonicalUrlNormalized} />
+{noIndex && <meta name="robots" content="noindex, nofollow" />}
+
+<!-- Open Graph -->
+<meta property="og:type" content={ogType} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:image" content={ogImageUrl} />
+{siteConfig.defaultOgImageAlt && <meta property="og:image:alt" content={siteConfig.defaultOgImageAlt} />}
+<meta property="og:url" content={canonicalUrlNormalized} />
+<meta property="og:site_name" content={siteConfig.title} />
+{publishedTime && <meta property="article:published_time" content={publishedTime} />}
+{tags?.map((tag) => <meta property="article:tag" content={tag} />)}
+
+<!-- Twitter Card -->
+<meta name="twitter:widgets:theme" content="preferred_color_scheme" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImageUrl} />
+
+<!-- Feeds -->
+<link rel="alternate" type="application/rss+xml" title={siteConfig.title} href="/rss.xml" />
+<link rel="sitemap" href="/sitemap-index.xml" />
+
+<!-- Favicon (default, updated by JS for theme adaptation) -->
+<link rel="icon" href="/favicon.png" />
+<script is:inline define:vars={{ faviconThemeAdaptive: siteConfig.faviconThemeAdaptive }}>
+(function() {
+  function setFavicon() {
+    if (!faviconThemeAdaptive) {
+      var existing = document.querySelector('link[rel="icon"]');
+      if (existing) existing.href = '/favicon.png';
+      return;
+    }
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var faviconUrl = prefersDark ? '/favicon-dark.png' : '/favicon-light.png';
+    var existing = document.querySelector('link[rel="icon"]');
+    if (existing) existing.remove();
+    var link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/png';
+    link.href = faviconUrl;
+    document.head.appendChild(link);
+  }
+  setFavicon();
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', setFavicon);
+  document.addEventListener('astro:page-load', setFavicon);
+})();
+</script>
+
+<!-- KaTeX (math rendering) - loaded async to avoid blocking render -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous" media="print" onload="this.media='all'" />
+<noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous" /></noscript>
+
+<!-- Fonts -->
+{isCdn && googleFontsUrl && (
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link rel="stylesheet" href={googleFontsUrl} />
+)}
+{isAstro && (
+  <Font cssVariable="--font-body" preload />
+  <Font cssVariable="--font-heading" preload />
+  <Font cssVariable="--font-mono" preload />
+)}
+<!-- Font + layout CSS variables (applied before first paint) -->
+{isAstro ? (
+  <style set:html={`
+    :root {
+      --content-width: ${contentWidth};
+    }
+  `}></style>
+) : (
+  <style set:html={`
+    :root {
+      --font-body: ${bodyFont};
+      --font-heading: ${headingFont};
+      --font-mono: ${monoFont};
+      --content-width: ${contentWidth};
+    }
+  `}></style>
+)}
+
+<!-- JSON-LD -->
+{jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+
+<!-- View Transitions -->
+<ClientRouter />
+
+<!-- GoatCounter (privacy-friendly, no cookies). Backend tracking only; no on-page counter. Only runs when config.analytics.goatcounterCode is set. -->
+{GOATCOUNTER_CODE && (
+  <>
+    <script is:inline>window.goatcounter = window.goatcounter || {}; window.goatcounter.no_onload = true;</script>
+    <script data-goatcounter={`https://${GOATCOUNTER_CODE}.goatcounter.com/count`} async src="https://gc.zgo.at/count.js"></script>
+    <script is:inline>
+      document.addEventListener('astro:page-load', function() {
+        if (window.goatcounter) window.goatcounter.count({ path: location.pathname + location.search });
+      });
+    </script>
+  </>
+)}
+
+<!-- Theme initialization (prevent flash, persist across View Transitions) -->
+<script is:inline>
+  function applyTheme() {
+    var theme = localStorage.getItem('theme');
+    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    // Reapply color theme after dark/light mode is set
+    if (window.__axisApplyTheme) {
+      var t = localStorage.getItem('selectedTheme') || window.__axisDefaultTheme || 'axis';
+      // If stored theme no longer exists, fall back to default
+      if (window.__axisThemeColors && !window.__axisThemeColors[t]) {
+        t = window.__axisDefaultTheme || 'axis';
+        localStorage.removeItem('selectedTheme');
+      }
+      window.__axisApplyTheme(t);
+    }
+  }
+  applyTheme();
+  document.addEventListener('astro:after-swap', applyTheme);
+</script>
+
+<!-- Nav visibility: set class before first paint to avoid nav links flashing on refresh -->
+<script is:inline>
+  (function() {
+    function setNavClass() {
+      var desktop = window.matchMedia('(min-width: 540px)').matches;
+      document.documentElement.classList.toggle('nav-desktop', desktop);
+      document.documentElement.classList.toggle('nav-mobile', !desktop);
+    }
+    setNavClass();
+    window.addEventListener('resize', setNavClass);
+    document.addEventListener('astro:page-load', setNavClass);
+  })();
+</script>
+
+<!-- Custom head snippets (Axis Settings). When cookie consent is on, payload + script run from body in BaseLayout. -->
+{!siteConfig.cookieConsentEnabled && siteConfig.snippets?.head?.trim() && (
+  <Fragment set:html={siteConfig.snippets.head} />
+)}

@@ -1,0 +1,44 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import PostList from '@/components/PostList.astro';
+import Pagination from '@/components/Pagination.astro';
+import { getCollection } from 'astro:content';
+import { shouldShowPost, sortPostsByDate } from '@/utils/markdown';
+import { siteConfig } from '@/config';
+import type { Post } from '@/types';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('posts') as unknown as Post[];
+  const posts = sortPostsByDate(allPosts.filter(shouldShowPost));
+
+  const tagMap = new Map<string, Post[]>();
+  for (const post of posts) {
+    for (const tag of post.data.tags || []) {
+      if (!tagMap.has(tag)) tagMap.set(tag, []);
+      tagMap.get(tag)!.push(post);
+    }
+  }
+
+  return [...tagMap.entries()].map(([tag, posts]) => ({
+    params: { tag },
+    props: {
+      tag,
+      posts: posts.slice(0, siteConfig.postsPerPage),
+      totalPages: Math.ceil(posts.length / siteConfig.postsPerPage),
+    },
+  }));
+}
+
+const { tag, posts, totalPages } = Astro.props;
+---
+
+<BaseLayout title={`Posts tagged #${tag}`} description={`All posts tagged "${tag}".`} ogImage={`/open-graph/${siteConfig.routes?.postsBase || 'posts'}/tag/${tag}.png`}>
+  <Container>
+    <section class="py-8">
+      <h1 class="text-2xl font-semibold tracking-tight mb-8">Posts tagged #{tag}</h1>
+      <PostList posts={posts} />
+      <Pagination currentPage={1} totalPages={totalPages} baseUrl={`/posts/tag/${tag}`} />
+    </section>
+  </Container>
+</BaseLayout>

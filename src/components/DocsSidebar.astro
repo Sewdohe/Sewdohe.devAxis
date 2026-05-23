@@ -1,0 +1,97 @@
+---
+import type { Doc } from '@/types';
+
+interface Props {
+  docs: Doc[];
+  currentSlug?: string;
+}
+
+const { docs, currentSlug } = Astro.props;
+
+// Group docs by category, sorted by order within each group
+const grouped = new Map<string, Doc[]>();
+const uncategorized: Doc[] = [];
+
+docs.forEach(doc => {
+  if (doc.data.draft) return;
+  const cat = doc.data.category || '';
+  if (cat) {
+    if (!grouped.has(cat)) grouped.set(cat, []);
+    grouped.get(cat)!.push(doc);
+  } else {
+    uncategorized.push(doc);
+  }
+});
+
+// Sort each group by order
+for (const [, items] of grouped) {
+  items.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
+}
+uncategorized.sort((a, b) => (a.data.order ?? 999) - (b.data.order ?? 999));
+
+// Sort categories alphabetically
+const sortedCategories = [...grouped.keys()].sort();
+---
+
+<nav class="docs-sidebar" aria-label="Documentation navigation">
+  {sortedCategories.map(cat => (
+    <div class="mb-4">
+      <h3 class="text-xs font-semibold uppercase tracking-wider mb-2" style="color: var(--muted);">
+        {cat}
+      </h3>
+      <ul class="space-y-1">
+        {grouped.get(cat)!.map(doc => (
+          <li>
+            <a
+              href={`/docs/${doc.id}/`}
+              class:list={[
+                'block text-sm py-1 px-2 rounded transition-colors',
+                doc.id === currentSlug
+                  ? 'font-medium'
+                  : 'hover:opacity-80',
+              ]}
+              style={doc.id === currentSlug
+                ? `color: var(--accent); background-color: color-mix(in srgb, var(--accent) 10%, transparent);`
+                : `color: var(--text);`
+              }
+            >
+              {doc.data.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ))}
+
+  {uncategorized.length > 0 && (
+    <div class="mb-4">
+      <ul class="space-y-1">
+        {uncategorized.map(doc => (
+          <li>
+            <a
+              href={`/docs/${doc.id}/`}
+              class:list={[
+                'block text-sm py-1 px-2 rounded transition-colors',
+                doc.id === currentSlug
+                  ? 'font-medium'
+                  : 'hover:opacity-80',
+              ]}
+              style={doc.id === currentSlug
+                ? `color: var(--accent); background-color: color-mix(in srgb, var(--accent) 10%, transparent);`
+                : `color: var(--text);`
+              }
+            >
+              {doc.data.title}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )}
+</nav>
+
+<style>
+  .docs-sidebar {
+    min-width: 200px;
+  }
+</style>

@@ -1,0 +1,94 @@
+---
+import FormattedDate from '@/components/FormattedDate.astro';
+import type { Post } from '@/types';
+
+interface Props {
+  posts: Post[];
+  hideYear?: boolean;
+  basePath?: string;
+  showDates?: boolean;
+}
+
+const { posts, hideYear = false, basePath = '/posts', showDates = true } = Astro.props;
+
+// Group posts by year (only if showing dates)
+const postsByYear = new Map<number, Post[]>();
+if (showDates) {
+  for (const post of posts) {
+    const year = post.data.published ? new Date(post.data.published).getUTCFullYear() : 0;
+    if (!postsByYear.has(year)) postsByYear.set(year, []);
+    postsByYear.get(year)!.push(post);
+  }
+} else {
+  // No dates: put all in a single group
+  postsByYear.set(0, posts);
+}
+// Sort years descending
+const years = [...postsByYear.keys()].sort((a, b) => b - a);
+---
+
+<div class="space-y-8">
+  {years.map((year) => (
+    <section>
+      {showDates && !hideYear && year !== 0 && <h3 class="text-sm font-medium mb-3 tabular-nums" style="color: var(--muted);">{year}</h3>}
+      <ul class="space-y-1 list-none p-0">
+        {postsByYear.get(year)!.map((post) => (
+          <li class={post.data.draft ? 'post-draft' : ''}>
+            <a
+              href={`${basePath.endsWith('/') ? basePath : basePath + '/'}${post.id}/`}
+              class="post-row"
+            >
+              <span class="post-title">{post.data.title}</span>
+              {showDates && post.data.published && (
+                <span class="post-date">
+                  <FormattedDate
+                    date={new Date(post.data.published)}
+                    short
+                  />
+                </span>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</div>
+
+<style>
+  .post-draft {
+    opacity: 0.4;
+  }
+  .post-draft:hover {
+    opacity: 0.6;
+  }
+
+  .post-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0.625rem;
+    margin: 0 -0.625rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.15s ease;
+  }
+
+  .post-row:hover {
+    background-color: var(--border);
+  }
+
+  .post-title {
+    font-weight: 450;
+  }
+
+  .post-date {
+    font-size: 0.875rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+</style>

@@ -1,0 +1,105 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import PostList from '@/components/PostList.astro';
+import ProjectCard from '@/components/ProjectCard.astro';
+import { getCollection, getEntry, render } from 'astro:content';
+import { siteConfig } from '@/config';
+import { shouldShowPost, sortPostsByDate } from '@/utils/markdown';
+import type { Post, Project } from '@/types';
+
+type CustomType = NonNullable<typeof siteConfig.customContentTypes>[number];
+
+export async function getStaticPaths() {
+  const defs = (siteConfig.customContentTypes ?? []).filter((t: CustomType) => t.enabled);
+  return defs.map(def => ({
+    params: { type: def.routeBase },
+  }));
+}
+
+const { type } = Astro.params as { type: string };
+const def = (siteConfig.customContentTypes ?? []).find((t: CustomType) => t.enabled && t.routeBase === type) ?? null;
+
+if (!def) {
+  return Astro.redirect('/404/');
+}
+
+const entries = await getCollection(def.id);
+const visible = entries.filter((e: any) => !e.data?.draft || !import.meta.env.PROD);
+
+// Read title/description from special collection
+let pageTitle = def.label;
+let pageDescription = `${def.label} content.`;
+let BlurbContent: any = null;
+try {
+  const specialEntry = await getEntry('special', def.id);
+  if (specialEntry) {
+    pageTitle = specialEntry.data.title || pageTitle;
+    pageDescription = specialEntry.data.description || pageDescription;
+    const { Content } = await render(specialEntry);
+    BlurbContent = Content;
+  }
+} catch {}
+
+function titleFor(e: any): string {
+  return e?.data?.title || e?.id || 'Untitled';
+}
+
+// Sort based on kind
+const sorted = def.kind === 'postLike'
+  ? sortPostsByDate(visible as unknown as Post[])
+  : def.kind === 'pageLike'
+    ? visible.slice().sort((a: any, b: any) => titleFor(a).localeCompare(titleFor(b)))
+    : def.kind === 'projectLike'
+    ? visible.slice().sort((a: any, b: any) => new Date(b.data?.date ?? 0).getTime() - new Date(a.data?.date ?? 0).getTime())
+    : def.kind === 'docLike'
+      ? visible.slice().sort((a: any, b: any) => (a.data?.order ?? 0) - (b.data?.order ?? 0))
+      : visible.slice().sort((a: any, b: any) => titleFor(a).localeCompare(titleFor(b)));
+
+// For projectLike, separate featured from others
+const featured = def.kind === 'projectLike' ? sorted.filter((e: any) => e.data?.featured) : [];
+const others = def.kind === 'projectLike' ? sorted.filter((e: any) => !e.data?.featured) : sorted;
+---
+
+<BaseLayout title={pageTitle} description={pageDescription} ogImage={`/open-graph/${def.routeBase}.png`}>
+  <Container>
+    <section class="py-8">
+      <h1 class="text-2xl font-semibold tracking-tight mb-6 animate">{pageTitle}</h1>
+
+      {BlurbContent && (
+        <div class="mb-8 prose prose-sm max-w-none animate" style="color: var(--muted);">
+          <BlurbContent />
+        </div>
+      )}
+
+      {visible.length === 0 ? (
+        <p class="animate" style="color: var(--muted);">No entries yet.</p>
+      ) : def.kind === 'postLike' ? (
+        <PostList posts={sorted as unknown as Post[]} basePath={`/${def.routeBase}`} />
+      ) : def.kind === 'pageLike' ? (
+        <PostList posts={sorted as unknown as Post[]} basePath={`/${def.routeBase}`} showDates={false} />
+      ) : def.kind === 'projectLike' ? (
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate">
+          {[...featured, ...others].map((project: any) => (
+            <ProjectCard project={project as unknown as Project} basePath={`/${def.routeBase}`} />
+          ))}
+        </div>
+      ) : (
+        <ul class="space-y-3 list-none p-0 animate">
+          {sorted.map((entry: any) => (
+            <li>
+              <a href={`/${def.routeBase}/${entry.id}/`} class="doc-card doc-card--row">
+                <div class="min-w-0">
+                  <span class="doc-card__title">{titleFor(entry)}</span>
+                  {entry.data?.description && (
+                    <span class="doc-card__desc block">{entry.data.description}</span>
+                  )}
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </Container>
+</BaseLayout>

@@ -1,0 +1,49 @@
+---
+import { siteConfig } from '@/config';
+import { getCollection } from 'astro:content';
+import { getRelatedPosts } from '@/utils/markdown';
+import type { Post } from '@/types';
+
+interface Props {
+  currentSlug: string;
+  currentTags: string[];
+}
+
+const { currentSlug, currentTags } = Astro.props;
+
+if (!siteConfig.features.relatedPosts) {
+  return;
+}
+
+const allPosts = await getCollection('posts') as unknown as Post[];
+const currentPost = allPosts.find(p => p.id === currentSlug);
+const related = currentPost ? getRelatedPosts(currentPost, allPosts, 3) : [];
+---
+
+{related.length > 0 && (
+  <aside class="mt-8 animate">
+    <h2 class="text-sm font-medium mb-4" style="color: var(--muted);">Related</h2>
+    <ul class="space-y-2 list-none p-0">
+      {related.map((post) => (
+        <li class={post.data.draft ? 'related-draft' : ''}>
+          <a
+            href={`/posts/${post.id}/`}
+            class="text-sm underline underline-offset-2 hover:opacity-70 transition-opacity"
+            style="color: var(--text);"
+          >
+            {post.data.title}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </aside>
+)}
+
+<style>
+  .related-draft {
+    opacity: 0.4;
+  }
+  .related-draft:hover {
+    opacity: 0.6;
+  }
+</style>

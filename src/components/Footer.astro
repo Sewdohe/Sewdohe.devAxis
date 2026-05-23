@@ -1,0 +1,135 @@
+---
+import { siteConfig } from '@/config';
+import { socialIconSvg } from '@/utils/icons';
+import ProfileCard from '@/components/ProfileCard.astro';
+
+const cfg = siteConfig.footer;
+
+// Don't render if footer is disabled
+if (!cfg.enabled) return;
+
+const currentYear = new Date().getFullYear();
+
+// Process {year} and {author} placeholders in footer content
+const footerHtml = cfg.content
+  .replace(/\{year\}/g, String(currentYear))
+  .replace(/\{author\}/g, siteConfig.author);
+
+// Social links for footer (uses navigation.social)
+const showSocialInFooter = cfg.showSocialIcons;
+const socialLinks = showSocialInFooter ? (siteConfig.navigation?.social ?? []).filter(l => l.showInFooter !== false) : [];
+
+const contentWidth = siteConfig.layout?.contentWidth ?? '680px';
+---
+
+{cfg.enabled && (
+  <footer class="site-footer">
+    <div class="footer-inner" style={`max-width: ${contentWidth};`}>
+
+      {/* Profile card in footer */}
+      {siteConfig.profilePicture?.enabled && siteConfig.profilePicture.placement === 'footer' && (
+        <div class="footer-profile">
+          <ProfileCard placement="footer" />
+        </div>
+      )}
+
+      <div class:list={['footer-bottom', { 'footer-bottom--icons-only': !footerHtml.trim() && socialLinks.length > 0 }]}>
+        {footerHtml.trim() && <span class="footer-content" set:html={footerHtml} />}
+
+        {socialLinks.length > 0 && (
+          <div class="footer-social">
+            {socialLinks.map(link => (
+              link.url?.trim() ? (
+                <a
+                  href={link.url}
+                  target="_blank"
+                  aria-label={link.title}
+                  title={link.title}
+                  class="footer-social-link"
+                  set:html={socialIconSvg(link.icon || link.title, { size: 14 })}
+                />
+              ) : (
+                <span
+                  aria-label={link.title}
+                  title={link.title}
+                  class="footer-social-link"
+                  style="cursor: default;"
+                  set:html={socialIconSvg(link.icon || link.title, { size: 14 })}
+                />
+              )
+            ))}
+          </div>
+        )}
+      </div>
+
+    </div>
+  </footer>
+)}
+
+<style>
+  .site-footer {
+    padding: 1.5rem 0 2rem;
+    margin-top: 2rem;
+  }
+
+  .footer-inner {
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .footer-profile {
+    margin-bottom: 1.25rem;
+  }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .footer-bottom--icons-only {
+    justify-content: center;
+  }
+
+  .footer-content {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* Ensure inline links in footer content are styled correctly */
+  .footer-content :global(a) {
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .footer-content :global(a:hover) {
+    color: var(--text);
+  }
+
+  .footer-social {
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+    flex-shrink: 0;
+  }
+
+  .footer-social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 0.375rem;
+    color: var(--muted);
+    transition: color 0.15s ease, background-color 0.15s ease;
+    text-decoration: none;
+  }
+
+  .footer-social-link:hover {
+    color: var(--text);
+  }
+</style>

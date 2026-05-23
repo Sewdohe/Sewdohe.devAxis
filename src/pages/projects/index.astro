@@ -1,0 +1,59 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import ProjectCard from '@/components/ProjectCard.astro';
+import { getCollection, getEntry, render } from 'astro:content';
+import { siteConfig } from '@/config';
+import type { Project } from '@/types';
+
+if (!siteConfig.contentTypes.projects) {
+  return Astro.redirect('/404/');
+}
+
+const allProjects = await getCollection('projects') as unknown as Project[];
+const projects = allProjects
+  .filter(p => !p.data.draft)
+  .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime());
+
+const featured = projects.filter(p => p.data.featured);
+const others = projects.filter(p => !p.data.featured);
+
+let projectsTitle = 'Projects';
+let projectsDescription = 'A collection of projects.';
+let ProjectsBlurbContent: any = null;
+try {
+  const specialId = siteConfig.routes?.projectsBase || 'projects';
+  const projectsPage =
+    (await getEntry('special', specialId)) ||
+    (specialId !== 'projects' ? await getEntry('special', 'projects') : null);
+  if (projectsPage) {
+    projectsTitle = projectsPage.data.title || projectsTitle;
+    projectsDescription = projectsPage.data.description || projectsDescription;
+    const { Content } = await render(projectsPage);
+    ProjectsBlurbContent = Content;
+  }
+} catch {}
+---
+
+<BaseLayout title={projectsTitle} description={projectsDescription} ogImage={`/open-graph/${siteConfig.routes?.projectsBase || 'projects'}.png`}>
+  <Container>
+    <section class="py-8">
+      <h1 class="text-2xl font-semibold tracking-tight mb-6 animate">{projectsTitle}</h1>
+      {ProjectsBlurbContent && (
+        <div class="mb-8 prose prose-sm max-w-none animate" style="color: var(--muted);">
+          <ProjectsBlurbContent />
+        </div>
+      )}
+
+      {projects.length === 0 ? (
+        <p class="animate" style="color: var(--muted);">No projects yet. Add markdown files to <code>src/content/projects/</code>.</p>
+      ) : (
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate">
+          {[...featured, ...others].map(project => (
+            <ProjectCard project={project} />
+          ))}
+        </div>
+      )}
+    </section>
+  </Container>
+</BaseLayout>

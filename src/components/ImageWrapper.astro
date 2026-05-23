@@ -1,0 +1,132 @@
+---
+/**
+ * ImageWrapper — uses Astro's Image component when the image is in public/ and
+ * can be resolved via glob; otherwise falls back to <img>. Pass the resolved
+ * URL path (e.g. /posts/id/cover.webp). RSS, OG, and other URL-only uses are
+ * unchanged (they use resolvePostImage etc. to build URLs, not this component).
+ */
+import path from "node:path";
+import { Image } from "astro:assets";
+
+interface Props {
+  src: string;
+  alt?: string;
+  class?: string;
+  width?: number;
+  height?: number;
+  format?: "webp" | "avif" | "png" | "jpg" | "jpeg";
+  quality?: number;
+  loading?: "lazy" | "eager";
+  decoding?: "async" | "sync" | "auto";
+  fetchpriority?: "high" | "low" | "auto";
+}
+
+const {
+  src,
+  alt = "",
+  class: className,
+  width = 800,
+  height = 450,
+  format = "webp",
+  quality = 85,
+  loading = "lazy",
+  decoding = "async",
+  fetchpriority = "auto",
+} = Astro.props;
+
+const isExternal =
+  !src ||
+  src.startsWith("http://") ||
+  src.startsWith("https://") ||
+  src.startsWith("data:");
+
+let img: import("astro").ImageMetadata | null = null;
+
+if (!isExternal && src.startsWith("/")) {
+  try {
+    // 1) Resolve from public/
+    const publicFiles = import.meta.glob<import("astro").ImageMetadata>(
+      "/public/**",
+      { import: "default" }
+    );
+    const normalizedPath = path
+      .normalize("/public" + src)
+      .replace(/\\/g, "/");
+    const keysToTry = [
+      normalizedPath,
+      normalizedPath.startsWith("/") ? normalizedPath.slice(1) : normalizedPath,
+      "public" + src,
+    ];
+    for (const key of keysToTry) {
+      const loader = publicFiles[key];
+      if (loader) {
+        img = (await loader()) as import("astro").ImageMetadata;
+        break;
+      }
+    }
+
+    // 2) If not in public, try content (folder-based: same dir as content). Any path like /posts/..., /docs/..., /projects/... etc.
+    if (!img && src.length > 1 && src.indexOf("/", 1) !== -1) {
+      const contentFiles = import.meta.glob<import("astro").ImageMetadata>(
+        "/src/content/**/*.{jpg,jpeg,png,gif,webp,avif}",
+        { import: "default" }
+      );
+      const pathNoExt = src.slice(1).replace(/\.[^.]+$/, "");
+      for (const key of Object.keys(contentFiles)) {
+        const keyNorm = key.replace(/^\/+/, "").replace(/\\/g, "/");
+        const keyNoExt = keyNorm.replace(/\.[^.]+$/, "");
+        if (keyNoExt.endsWith(pathNoExt)) {
+          const loader = contentFiles[key];
+          if (loader) {
+            img = (await loader()) as import("astro").ImageMetadata;
+            break;
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const imageClass = "w-full h-full object-cover";
+---
+
+{isExternal ? (
+  <img
+    src={src}
+    alt={alt}
+    class={className ?? imageClass}
+    width={width}
+    height={height}
+    loading={loading}
+    decoding={decoding}
+    fetchpriority={fetchpriority}
+    data-image-component
+  />
+) : img ? (
+  <Image
+    src={img}
+    alt={alt}
+    width={width}
+    height={height}
+    format={format}
+    quality={quality}
+    class={className ?? imageClass}
+    loading={loading}
+    decoding={decoding}
+    fetchpriority={fetchpriority}
+  />
+) : (
+  <img
+    src={src}
+    alt={alt}
+    class={className ?? imageClass}
+    width={width}
+    height={height}
+    loading={loading}
+    decoding={decoding}
+    fetchpriority={fetchpriority}
+    data-image-component
+  />
+)}

@@ -1,0 +1,336 @@
+---
+import { siteConfig } from '@/config';
+import { themes, getThemeDisplayName } from '@/themes/index';
+
+const allThemeNames = Object.keys(themes);
+const defaultTheme = siteConfig.theme || 'axis';
+
+// Build available themes list
+let availableThemes: string[];
+if (siteConfig.availableThemes === 'all') {
+  availableThemes = allThemeNames;
+} else if (Array.isArray(siteConfig.availableThemes)) {
+  availableThemes = siteConfig.availableThemes;
+} else {
+  availableThemes = allThemeNames;
+}
+
+// Only show non-default themes as explicit choices; default is represented by a dedicated option.
+const nonDefaultThemes = availableThemes.filter(t => t !== defaultTheme);
+const hasThemeChoices = nonDefaultThemes.length > 0;
+
+// Build theme data for client-side rendering
+const themeData = nonDefaultThemes.map(name => ({
+  name,
+  displayName: getThemeDisplayName(name),
+  isDefault: false,
+}));
+
+// Serialize theme colors for client-side switching
+const themeColorsJson = JSON.stringify(themes);
+---
+
+{hasThemeChoices && (
+<div id="theme-selector-dialog" data-theme-dialog>
+  <div class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" data-theme-dialog-overlay hidden></div>
+  <div class="fixed inset-0 z-50 overflow-hidden border-0 bg-[var(--bg)] sm:inset-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-sm sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg sm:border sm:border-[var(--border)] sm:shadow-lg" data-theme-dialog-content hidden>
+    <div class="flex h-full w-full flex-col overflow-hidden sm:rounded-lg" style="background-color: var(--bg); color: var(--text);">
+      <!-- Header -->
+      <div class="flex items-center justify-between border-b px-3 h-10" style="border-color: var(--border);">
+        <span class="text-sm font-medium" style="color: var(--muted);">Theme</span>
+        <button
+          id="theme-selector-close"
+          class="flex items-center justify-center w-6 h-6 rounded transition-colors"
+          style="color: var(--muted);"
+          aria-label="Close theme selector"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Theme List -->
+      <div class="overflow-y-auto overflow-x-hidden flex-1 sm:max-h-80 p-1 theme-selector-scroll">
+        <div
+          class="relative flex cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors"
+          data-theme-option="__default"
+          role="option"
+          aria-selected="false"
+        >
+          <span class="flex items-center gap-2 min-w-0">
+            <span class="inline-block w-3 h-3 rounded-full shrink-0 border" style="border-color: var(--border);" data-theme-swatch="__default"></span>
+            <span class="truncate">Default ({getThemeDisplayName(defaultTheme)})</span>
+          </span>
+          <svg class="w-4 h-4 shrink-0 hidden" data-theme-check="__default" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m4.5 12.75 6 6 9-13.5"/></svg>
+        </div>
+        {themeData.map((theme) => (
+          <div
+            class="relative flex cursor-pointer select-none items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors"
+            data-theme-option={theme.name}
+            role="option"
+            aria-selected="false"
+          >
+            <span class="flex items-center gap-2 min-w-0">
+              <span class="inline-block w-3 h-3 rounded-full shrink-0 border" style="border-color: var(--border);" data-theme-swatch={theme.name}></span>
+              <span class="truncate">{theme.displayName}</span>
+            </span>
+            <svg class="w-4 h-4 shrink-0 hidden" data-theme-check={theme.name} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="m4.5 12.75 6 6 9-13.5"/></svg>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+)}
+
+<style>
+  .theme-selector-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .theme-selector-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .theme-selector-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .theme-selector-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 3px;
+  }
+
+  [data-theme-option]:hover {
+    background-color: var(--border);
+  }
+
+  [data-theme-option][data-selected="true"] {
+    background-color: var(--border);
+  }
+
+  [data-theme-option][data-highlighted="true"] {
+    background-color: var(--border);
+  }
+</style>
+
+<script is:inline define:vars={{ themeColorsJson, defaultTheme }}>
+(function() {
+  var themeColors;
+  try { themeColors = JSON.parse(themeColorsJson); } catch(e) { themeColors = {}; }
+
+  function resolveEffectiveThemeName(selection) {
+    if (selection === '__default' || !selection) return defaultTheme;
+    return selection;
+  }
+
+  function applyTheme(selection, opts) {
+    opts = opts || {};
+    var persist = !!opts.persist;
+    var effective = resolveEffectiveThemeName(selection);
+    var theme = themeColors[effective] || themeColors['axis'];
+    if (!theme) return;
+    var isDark = document.documentElement.classList.contains('dark');
+    var c = isDark ? theme.dark : theme.light;
+    var s = document.documentElement.style;
+    s.setProperty('--bg', c.bg);
+    s.setProperty('--text', c.text);
+    s.setProperty('--muted', c.muted);
+    s.setProperty('--border', c.border);
+    s.setProperty('--accent', c.accent);
+    s.setProperty('--accent-text', c.accentText);
+    document.documentElement.setAttribute('data-theme', effective);
+
+    if (persist) {
+      localStorage.setItem('selectedTheme', effective);
+    }
+  }
+
+  // Expose globally for dark mode toggle to reapply
+  window.__axisThemeColors = themeColors;
+  window.__axisApplyTheme = applyTheme;
+  window.__axisDefaultTheme = defaultTheme;
+
+  function updateSwatches() {
+    var override = localStorage.getItem('selectedTheme');
+    var currentSelection = override ? override : '__default';
+    var isDark = document.documentElement.classList.contains('dark');
+    document.querySelectorAll('[data-theme-swatch]').forEach(function(el) {
+      var name = el.getAttribute('data-theme-swatch');
+      var effective = resolveEffectiveThemeName(name);
+      var t = themeColors[effective];
+      if (!t) return;
+      var c = isDark ? t.dark : t.light;
+      el.style.backgroundColor = c.accent;
+    });
+    document.querySelectorAll('[data-theme-check]').forEach(function(el) {
+      var name = el.getAttribute('data-theme-check');
+      el.classList.toggle('hidden', name !== currentSelection);
+    });
+    document.querySelectorAll('[data-theme-option]').forEach(function(el) {
+      var name = el.getAttribute('data-theme-option');
+      if (name === currentSelection) {
+        el.setAttribute('data-selected', 'true');
+      } else {
+        el.removeAttribute('data-selected');
+      }
+    });
+  }
+
+  function openThemeSelector() {
+    var overlay = document.querySelector('[data-theme-dialog-overlay]');
+    var content = document.querySelector('[data-theme-dialog-content]');
+    if (!overlay || !content) return;
+
+    updateSwatches();
+    // Set keyboard highlight on the currently active theme
+    var override = localStorage.getItem('selectedTheme');
+    var currentSelection = override ? override : '__default';
+    document.querySelectorAll('[data-theme-option]').forEach(function(el) {
+      if (el.getAttribute('data-theme-option') === currentSelection) {
+        el.setAttribute('data-highlighted', 'true');
+      } else {
+        el.removeAttribute('data-highlighted');
+      }
+    });
+
+    overlay.style.opacity = '0';
+    overlay.hidden = false;
+    overlay.classList.remove('dialog-closing');
+    content.style.opacity = '0';
+    content.hidden = false;
+    content.classList.remove('dialog-closing');
+
+    requestAnimationFrame(function() {
+      overlay.style.opacity = '';
+      overlay.classList.add('dialog-open');
+      content.style.opacity = '';
+      content.classList.add('dialog-open');
+    });
+
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeThemeSelector() {
+    var overlay = document.querySelector('[data-theme-dialog-overlay]');
+    var content = document.querySelector('[data-theme-dialog-content]');
+    if (!overlay || !content) return;
+
+    overlay.classList.remove('dialog-open');
+    overlay.classList.add('dialog-closing');
+    content.classList.remove('dialog-open');
+    content.classList.add('dialog-closing');
+
+    setTimeout(function() {
+      overlay.hidden = true;
+      overlay.classList.remove('dialog-closing');
+      content.hidden = true;
+      content.classList.remove('dialog-closing');
+    }, 100);
+
+    document.body.style.overflow = '';
+  }
+
+  function isThemeSelectorOpen() {
+    var overlay = document.querySelector('[data-theme-dialog-overlay]');
+    return overlay && !overlay.hidden;
+  }
+
+  function initThemeSelector() {
+    var closeBtn = document.getElementById('theme-selector-close');
+
+    // Close button
+    if (closeBtn && !closeBtn.dataset.bound) {
+      closeBtn.dataset.bound = 'true';
+      closeBtn.addEventListener('click', closeThemeSelector);
+    }
+
+    // Overlay click to close
+    var overlay = document.querySelector('[data-theme-dialog-overlay]');
+    if (overlay && !overlay.dataset.bound) {
+      overlay.dataset.bound = 'true';
+      overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) closeThemeSelector();
+      });
+    }
+
+    // Keyboard navigation (registered once, outside of initThemeSelector's repeat calls)
+    if (!window.__themeSelectorKbdBound) {
+      window.__themeSelectorKbdBound = true;
+      document.addEventListener('keydown', function(e) {
+        if (!isThemeSelectorOpen()) return;
+        if (e.key === 'Escape') { closeThemeSelector(); return; }
+
+        var options = Array.from(document.querySelectorAll('[data-theme-option]'));
+        if (options.length === 0) return;
+
+        var currentIdx = -1;
+        options.forEach(function(el, i) {
+          if (el.getAttribute('data-highlighted') === 'true') currentIdx = i;
+        });
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          var next = (currentIdx + 1) % options.length;
+          highlightThemeOption(options, next);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          var prev = (currentIdx - 1 + options.length) % options.length;
+          highlightThemeOption(options, prev);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (currentIdx >= 0) {
+            var name = options[currentIdx].getAttribute('data-theme-option');
+            if (name === '__default') {
+              localStorage.removeItem('selectedTheme');
+              applyTheme('__default', { persist: false });
+            } else {
+              applyTheme(name, { persist: true });
+            }
+            updateSwatches();
+            closeThemeSelector();
+          }
+        }
+      });
+    }
+
+    function highlightThemeOption(options, idx) {
+      options.forEach(function(el) { el.removeAttribute('data-highlighted'); });
+      if (idx >= 0 && idx < options.length) {
+        options[idx].setAttribute('data-highlighted', 'true');
+        options[idx].scrollIntoView({ block: 'nearest' });
+      }
+    }
+
+    // Theme option clicks
+    document.querySelectorAll('[data-theme-option]').forEach(function(btn) {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = 'true';
+      btn.addEventListener('click', function() {
+        var name = btn.getAttribute('data-theme-option');
+        if (name === '__default') {
+          localStorage.removeItem('selectedTheme');
+          applyTheme('__default', { persist: false });
+        } else {
+          applyTheme(name, { persist: true });
+        }
+        updateSwatches();
+        closeThemeSelector();
+      });
+    });
+
+    // Expose open handler
+    window.__openThemeSelector = openThemeSelector;
+  }
+
+  // Apply saved theme on load
+  var saved = localStorage.getItem('selectedTheme');
+  var effective = (saved && themeColors[saved]) ? saved : defaultTheme;
+  // Never persist the default on load; only persist explicit user choices.
+  applyTheme(effective, { persist: false });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initThemeSelector);
+  } else {
+    initThemeSelector();
+  }
+  document.addEventListener('astro:page-load', initThemeSelector);
+})();
+</script>

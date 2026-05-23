@@ -1,0 +1,214 @@
+{
+  "runWizardOnStartup": true,
+  "removeRibbonIcon": false,
+  "siteInfo": {
+    "site": "https://sewdohe.dev",
+    "title": "Sewdohe.dev",
+    "homepageTitle": "Sewdohe - Personal Blog & Portfolio",
+    "description": "My personal blog and portfolio website.",
+    "author": "Sewdohe",
+    "language": "en",
+    "faviconThemeAdaptive": true
+  },
+  "theme": "catppuccin",
+  "availableThemes": "all",
+  "layout": {
+    "contentWidth": "42rem"
+  },
+  "fonts": {
+    "source": "astro",
+    "families": {
+      "body": "Plus Jakarta Sans",
+      "heading": "Merriweather",
+      "mono": "JetBrains Mono"
+    },
+    "display": "optional"
+  },
+  "navigation": {
+    "style": "traditional",
+    "showSocialInHeader": false,
+    "socialPlacement": "footer",
+    "social": [
+      {
+        "title": "GitHub",
+        "url": "https://github.com/davidvkimball",
+        "icon": "github"
+      },
+      {
+        "title": "Discord",
+        "url": "https://discord.gg/gyrNHAwHK8",
+        "icon": "discord"
+      },
+      {
+        "title": "BlueSky",
+        "url": "https://",
+        "icon": "bksy"
+      }
+    ],
+    "pages": [
+      {
+        "title": "Home",
+        "url": "/",
+        "icon": "house",
+        "showInNav": false
+      },
+      {
+        "title": "Posts",
+        "url": "/posts/",
+        "icon": "square-pen"
+      },
+      {
+        "title": "Projects",
+        "url": "/projects/",
+        "icon": "folder"
+      },
+      {
+        "title": "Docs",
+        "url": "/docs/",
+        "icon": "book"
+      },
+      {
+        "title": "About",
+        "url": "/about/",
+        "icon": "circle-user-round"
+      }
+    ],
+    "mobileNav": "traditional"
+  },
+  "defaultOgImageAlt": "",
+  "pages": [
+    {
+      "title": "Home",
+      "url": "/",
+      "icon": "home",
+      "showInNav": false
+    },
+    {
+      "title": "Posts",
+      "url": "/posts/",
+      "icon": "pencil-square"
+    },
+    {
+      "children": [
+        {
+          "title": "Sample Project",
+          "url": "/projects/sample-project/"
+        }
+      ],
+      "title": "Projects",
+      "url": "/projects/",
+      "icon": "folder"
+    },
+    {
+      "children": [
+        {
+          "title": "Getting Started",
+          "url": "/docs/getting-started/"
+        },
+        {
+          "title": "Themes",
+          "url": "/docs/themes/"
+        }
+      ],
+      "title": "Docs",
+      "url": "/docs/",
+      "icon": "book"
+    },
+    {
+      "title": "About",
+      "url": "/about/",
+      "icon": "user-circle"
+    },
+    {
+      "title": "Buy",
+      "url": "https://store.davidvkimball.com/checkout/buy/b942a935-bc8b-4389-a50a-c8aada83002f",
+      "icon": "shopping-bag",
+      "showInNav": false
+    }
+  ],
+  "featureButton": "graph",
+  "features": {
+    "darkMode": true,
+    "scrollToTop": true,
+    "readingTime": true,
+    "wordCount": false,
+    "tableOfContents": true,
+    "tocDepth": 3,
+    "postNavigation": true,
+    "relatedPosts": false,
+    "linkedMentions": true,
+    "localGraph": true,
+    "imageGallery": true,
+    "search": true
+  },
+  "postOptions": {
+    "postsPerPage": 20,
+    "showCoverImage": true,
+    "showPostCardCoverImages": "home",
+    "postCardAspectRatio": "og",
+    "customPostCardAspectRatio": "2.5/1",
+    "showTags": false
+  },
+  "profilePicture": {
+    "enabled": true,
+    "name": "Sewdohe",
+    "bio": "I'm a mechanic by trade, but a developer and creator by hobby. Linux user for over 10 years now 🦾",
+    "image": "/assets/profile.jpg",
+    "alt": "Profile picture",
+    "size": "md",
+    "url": "/about/",
+    "placement": "footer",
+    "style": "circle"
+  },
+  "footer": {
+    "enabled": true,
+    "content": "© {year} {author}. Powered by <a href=\"https://astro.build\" target=\"_blank\" style=\"color:var(--accent);font-weight:500;\">Astro</a>, <a href=\"https://store.davidvkimball.com/checkout/buy/b942a935-bc8b-4389-a50a-c8aada83002f\" target=\"_blank\" style=\"color:var(--accent);font-weight:500;\">Axis</a>, & <a href=\"https://vaultcms.org\" target=\"_blank\" style=\"color:var(--accent);font-weight:500;\">Vault CMS</a>.",
+    "showSocialIcons": true
+  },
+  "contentTypes": {
+    "projects": true,
+    "docs": true
+  },
+  "routes": {
+    "postsBase": "posts",
+    "projectsBase": "projects",
+    "docsBase": "docs"
+  },
+  "customContentTypes": [],
+  "home": {
+    "layout": "magazine",
+    "showBlurb": true,
+    "showProjects": true,
+    "showDocs": true,
+    "featuredPostSlug": "hello-world"
+  },
+  "commandPaletteEnabled": true,
+  "commandPaletteShortcut": "k",
+  "commandPaletteActions": true,
+  "commandPalettePages": true,
+  "commandPaletteSocial": true,
+  "graphEnabled": true,
+  "graphInCommandPalette": true,
+  "graphMaxNodes": 100,
+  "graphShowOrphans": true,
+  "deployment": {
+    "platform": "netlify"
+  },
+  "snippets": {
+    "head": "",
+    "bodyEnd": ""
+  },
+  "cookieConsent": {
+    "enabled": true
+  },
+  "customThemeGenerationEnabled": false,
+  "customThemeFile": "custom",
+  "themeColors": {
+    "mode": "simple",
+    "simpleColors": {
+      "accent": "#b85c38",
+      "background": "#1c1917"
+    }
+  },
+  "omnisearchChecked": true
+}

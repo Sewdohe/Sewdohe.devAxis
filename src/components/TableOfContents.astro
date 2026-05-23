@@ -1,0 +1,22 @@
+---
+import type { Heading } from '@/types';
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings: rawHeadings } = Astro.props;
+const headings = rawHeadings.filter((h) => h.slug !== 'footnote-label');
+---
+
+{headings.length > 0 && (
+  <nav class="toc" aria-label="Table of contents">
+    <ul>
+      {headings.map((heading) => (
+        <li style={heading.depth === 3 ? 'padding-left: 0.75rem;' : ''}>
+          <a href={`#${heading.slug}`}>{heading.text}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

@@ -1,0 +1,108 @@
+---
+import ImageWrapper from '@/components/ImageWrapper.astro';
+import type { Project } from '@/types';
+
+interface Props {
+  project: Project;
+  basePath?: string;
+}
+
+const { project, basePath = '/projects' } = Astro.props;
+const { title, description, status, tags, image, imageAlt, repositoryUrl, projectUrl } = project.data;
+
+function resolveProjectImage(imagePath: string, projectId: string): string {
+  let clean = imagePath.replace(/^\.\//, '');
+  if (clean.startsWith('images/') || clean.startsWith('attachments/')) {
+    clean = clean.replace(/^(images|attachments)\//, '');
+  }
+  if (!clean.toLowerCase().endsWith('.svg') && !clean.toLowerCase().endsWith('.webp')) {
+    clean = clean.replace(/\.(jpg|jpeg|png|gif|bmp|tiff|tif)$/i, '.webp');
+  }
+  const base = basePath.endsWith('/') ? basePath : basePath + '/';
+  return `${base}${projectId}/${clean}`;
+}
+
+const imageUrl = image ? resolveProjectImage(image, project.id) : null;
+
+const statusColors: Record<string, string> = {
+  active: 'color: #16a34a;',
+  wip: 'color: #d97706;',
+  archived: 'color: var(--muted);',
+};
+
+const statusLabels: Record<string, string> = {
+  active: 'Active',
+  wip: 'In Progress',
+  archived: 'Archived',
+};
+---
+
+<a
+  href={`${basePath.endsWith('/') ? basePath : basePath + '/'}${project.id}/`}
+  class="project-card group block border rounded-lg overflow-hidden"
+  style="background-color: var(--bg);"
+>
+  {imageUrl && (
+    <div class="aspect-video overflow-hidden" style="background-color: var(--border);">
+      <ImageWrapper
+        src={imageUrl}
+        alt={imageAlt || title || 'Project thumbnail'}
+        class="project-card__img w-full h-full object-cover"
+        loading="lazy"
+      />
+    </div>
+  )}
+  <div class="p-4">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="project-card__title font-semibold text-base">{title}</h3>
+      {status && (
+        <span class="text-xs font-medium" style={statusColors[status] || ''}>
+          {statusLabels[status] || status}
+        </span>
+      )}
+    </div>
+    {description && (
+      <p class="text-sm mb-3" style="color: var(--muted);">{description}</p>
+    )}
+    <div class="flex items-center gap-3">
+      {repositoryUrl && (
+        <span class="text-xs" style="color: var(--muted);">
+          <svg class="inline w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></svg>
+          Code
+        </span>
+      )}
+      {projectUrl && (
+        <span class="text-xs" style="color: var(--muted);">
+          <svg class="inline w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+          Demo
+        </span>
+      )}
+    </div>
+    {tags && tags.length > 0 && (
+      <div class="flex flex-wrap gap-1 mt-3">
+        {tags.slice(0, 4).map(tag => (
+          <span class="inline-tag">{tag}</span>
+        ))}
+      </div>
+    )}
+  </div>
+</a>
+
+<style>
+  .project-card {
+    border: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease;
+  }
+
+  .project-card:hover {
+    border-color: var(--muted);
+  }
+
+  .project-card__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+</style>

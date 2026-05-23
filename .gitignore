@@ -1,0 +1,37 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.*
+
+# caches
+.cache/
+
+# Synced/generated public files (regenerated at build time)
+public/posts/
+public/pages/
+public/docs/
+public/projects/
+public/graph/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# debug
+npm-debug.log*
+pnpm-debug.log*
+
+# Vault CMS / Obsidian
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
+.ref/

@@ -1,0 +1,7 @@
+---
+import { siteConfig } from '@/config';
+const contentWidth = siteConfig.layout?.contentWidth ?? '680px';
+---
+<div class="mx-auto px-6" style={`max-width: ${contentWidth};`}>
+  <slot />
+</div>

@@ -1,0 +1,106 @@
+---
+import { siteConfig } from '@/config';
+import { findLinkedMentions } from '@/utils/internallinks';
+import { getCollection } from 'astro:content';
+import type { Post } from '@/types';
+
+interface Props {
+  currentSlug: string;
+}
+
+const { currentSlug } = Astro.props;
+
+// Only render if enabled
+if (!siteConfig.features.linkedMentions) {
+  return;
+}
+
+const posts = await getCollection('posts') as unknown as Post[];
+const linkedMentions = findLinkedMentions(posts, currentSlug);
+---
+
+{linkedMentions.length > 0 && (
+  <section class="mt-12">
+    <button
+      id="linked-mentions-toggle"
+      class="w-full text-left mb-4 flex items-center justify-between"
+      aria-expanded="true"
+      aria-controls="linked-mentions-content"
+    >
+      <div class="flex items-center gap-2">
+        <span class="text-sm font-medium" style="color: var(--muted);">
+          Linked Mentions
+          <span class="ml-1 text-sm font-normal" style="color: var(--muted);">
+            ({linkedMentions.length})
+          </span>
+        </span>
+      </div>
+      <span id="linked-mentions-arrow">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted); transition: transform 200ms ease;" id="linked-mentions-chevron"><path d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+      </span>
+    </button>
+
+    <div id="linked-mentions-content" class="space-y-2 overflow-hidden transition-all duration-300 ease-in-out">
+      {linkedMentions.map(mention => (
+        <a
+          href={`/posts/${mention.slug}/`}
+          class:list={['group flex items-center justify-between p-3 border rounded-lg transition-colors hover:border-[var(--muted)]', { 'mention-draft': mention.draft }]}
+          style="border-color: var(--border);"
+        >
+          <span class="group-hover:opacity-80 transition-opacity font-medium text-sm">
+            {mention.title}
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--muted);"><path d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+        </a>
+      ))}
+    </div>
+  </section>
+)}
+
+<style>
+  .mention-draft {
+    opacity: 0.4;
+  }
+  .mention-draft:hover {
+    opacity: 0.6;
+  }
+</style>
+
+<script is:inline>
+(function() {
+  function initLinkedMentions() {
+    var toggle = document.getElementById('linked-mentions-toggle');
+    var content = document.getElementById('linked-mentions-content');
+    var chevron = document.getElementById('linked-mentions-chevron');
+    if (!toggle || !content) return;
+    if (toggle.dataset.lmBound) return;
+    toggle.dataset.lmBound = 'true';
+
+    toggle.addEventListener('click', function() {
+      var expanded = toggle.getAttribute('aria-expanded') === 'true';
+      if (expanded) {
+        content.style.maxHeight = '0';
+        content.style.opacity = '0';
+        toggle.setAttribute('aria-expanded', 'false');
+        if (chevron) chevron.style.transform = 'rotate(-90deg)';
+      } else {
+        content.style.maxHeight = content.scrollHeight + 'px';
+        content.style.opacity = '1';
+        toggle.setAttribute('aria-expanded', 'true');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+      }
+    });
+
+    // Start expanded
+    content.style.maxHeight = content.scrollHeight + 'px';
+    content.style.opacity = '1';
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLinkedMentions);
+  } else {
+    initLinkedMentions();
+  }
+  document.addEventListener('astro:page-load', initLinkedMentions);
+})();
+</script>

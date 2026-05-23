@@ -1,0 +1,563 @@
+---
+import { siteConfig } from '@/config';
+const graphMaxNodes = siteConfig.graphMaxNodes ?? 100;
+const graphShowOrphans = siteConfig.graphShowOrphans !== false;
+const postsBase = siteConfig.routes?.postsBase ?? 'posts';
+---
+
+<!-- Graph Modal Overlay -->
+<div
+  id="graph-modal-overlay"
+  class="graph-modal-overlay hidden"
+  role="dialog"
+  aria-modal="true"
+  data-max-nodes={graphMaxNodes}
+  data-show-orphans={graphShowOrphans ? "true" : "false"}
+  data-posts-base={postsBase}
+>
+  <div class="graph-modal-center">
+    <div class="graph-modal-panel">
+      <!-- Tag Toggle Button -->
+      <button
+        id="graph-modal-tag-toggle"
+        class="graph-modal-toggle"
+        aria-label="Toggle tags"
+        title="Toggle tags"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>
+      </button>
+
+      <!-- Close Button -->
+      <button
+        id="graph-modal-close"
+        class="graph-modal-close"
+        aria-label="Close graph modal"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 6L6 18"/><path d="M6 6l12 12"/>
+        </svg>
+      </button>
+
+      <!-- Graph Container -->
+      <div id="graph-modal-container" class="graph-modal-container">
+        <!-- Graph will be rendered here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import * as d3 from "d3";
+  import { navigate } from 'astro:transitions/client';
+  import { getGraphThemeColors } from '@/utils/graph-theme-colors';
+
+  let simulation: d3.Simulation<any, any> | null = null;
+  let cleanup: (() => void) | null = null;
+  let rawData: any = null;
+  let tagsVisible = false;
+
+  interface GraphNode {
+    id: string;
+    name: string;
+    slug?: string;
+    draft?: boolean;
+    radius: number;
+    group?: string;
+    x?: number;
+    y?: number;
+    fx?: number | null;
+    fy?: number | null;
+  }
+
+  interface GraphLink {
+    source: string | GraphNode;
+    target: string | GraphNode;
+    value: number;
+  }
+
+  interface GraphData {
+    nodes: GraphNode[];
+    links: GraphLink[];
+  }
+
+  function openModal() {
+    const overlay = document.getElementById('graph-modal-overlay') as HTMLElement;
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    loadGraphData();
+  }
+
+  function closeModal() {
+    const overlay = document.getElementById('graph-modal-overlay') as HTMLElement;
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    if (cleanup) { cleanup(); cleanup = null; }
+  }
+
+  function buildGraphData(data: any, includeTags: boolean, maxNodes: number, showOrphans: boolean): GraphData {
+    let nodes = [...data.nodes];
+    let connections = [...data.connections];
+    if (includeTags && data.tagNodes?.length) {
+      nodes = [...nodes, ...data.tagNodes];
+      connections = [...connections, ...data.tagConnections];
+    }
+
+    const connectionSet = new Set<string>();
+    for (const conn of connections) {
+      connectionSet.add(conn.source);
+      connectionSet.add(conn.target);
+    }
+    if (!showOrphans) {
+      nodes = nodes.filter((n: any) => connectionSet.has(n.id));
+    }
+    if (nodes.length > maxNodes) {
+      nodes.sort((a: any, b: any) => (b.connections || 0) - (a.connections || 0));
+      nodes = nodes.slice(0, maxNodes);
+    }
+
+    const nodeIds = new Set(nodes.map((n: any) => n.id));
+    return {
+      nodes: nodes.map((node: any) => ({
+        id: node.id,
+        name: node.title || node.name,
+        slug: node.slug,
+        draft: node.draft || false,
+        radius: node.type === 'tag'
+          ? Math.max(3, Math.min(10, (node.connections || 0) + 3))
+          : Math.max(5, Math.min(15, (node.connections || 0) + 5)),
+        group: node.type
+      })),
+      links: connections
+        .filter((conn: any) => nodeIds.has(conn.source) && nodeIds.has(conn.target))
+        .map((conn: any) => ({
+          source: conn.source,
+          target: conn.target,
+          value: 1
+        }))
+    };
+  }
+
+  function loadGraphData() {
+    const container = document.getElementById('graph-modal-container') as HTMLElement;
+    if (!container) return;
+
+    container.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;">
+        <p style="font-size:0.875rem;opacity:0.7;">Loading graph...</p>
+      </div>
+    `;
+
+    const overlay = document.getElementById('graph-modal-overlay') as HTMLElement;
+    const maxNodes = parseInt(overlay?.dataset.maxNodes || '100', 10);
+    const showOrphans = overlay?.dataset.showOrphans !== 'false';
+
+    fetch('/graph/graph-data.json')
+      .then(response => response.json())
+      .then((data: any) => {
+        rawData = data;
+        updateTagToggleUI();
+        const graphData = buildGraphData(data, tagsVisible, maxNodes, showOrphans);
+        renderGraph(container, graphData);
+      })
+      .catch(() => {
+        container.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;">
+            <p>Graph data not available</p>
+            <p style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.7;">Run the build process to generate graph data.</p>
+          </div>
+        `;
+      });
+  }
+
+  function toggleTags() {
+    tagsVisible = !tagsVisible;
+    updateTagToggleUI();
+    if (!rawData) return;
+    const container = document.getElementById('graph-modal-container') as HTMLElement;
+    if (!container) return;
+    if (cleanup) { cleanup(); cleanup = null; }
+    const overlay = document.getElementById('graph-modal-overlay') as HTMLElement;
+    const maxNodes = parseInt(overlay?.dataset.maxNodes || '100', 10);
+    const showOrphans = overlay?.dataset.showOrphans !== 'false';
+    const graphData = buildGraphData(rawData, tagsVisible, maxNodes, showOrphans);
+    renderGraph(container, graphData);
+  }
+
+  function updateTagToggleUI() {
+    const btn = document.getElementById('graph-modal-tag-toggle');
+    if (!btn) return;
+    const hasTags = rawData?.tagNodes?.length > 0;
+    btn.style.display = hasTags ? '' : 'none';
+    btn.classList.toggle('active', tagsVisible);
+  }
+
+  function renderGraph(container: HTMLElement, data: GraphData) {
+    const colors = getGraphThemeColors();
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    const CLICK_DISTANCE = 5; // px threshold to distinguish click from drag
+    let isDraggingNode = false;
+
+    container.innerHTML = '';
+
+    const links = data.links.map((d) => ({ ...d }));
+    const nodes = data.nodes.map((d) => ({ ...d }));
+
+    simulation = d3
+      .forceSimulation<GraphNode>(nodes)
+      .force("link", d3.forceLink(links).id((d: any) => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-300))
+      .force("x", d3.forceX(width / 2).strength(0.05))
+      .force("y", d3.forceY(height / 2).strength(0.05))
+      .force("collision", d3.forceCollide().radius((d: any) => d.radius + 5));
+
+    const svgEl = d3
+      .select(container)
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .style("background", colors.background);
+
+    const containerGroup = svgEl.append("g");
+
+    const zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 8])
+      .wheelDelta((event) => -event.deltaY * 0.001)
+      .filter((event) => {
+        if (isDraggingNode) return false;
+        if (event.type === 'wheel') return true;
+        if (event.type === 'mousedown') return !event.target.closest('g[data-id]');
+        if (event.type === 'touchstart' || event.type === 'touchmove') {
+          if (event.touches && event.touches.length >= 2) return true;
+          return !event.target.closest('g[data-id]');
+        }
+        return false;
+      })
+      .on("zoom", (event) => {
+        containerGroup.attr("transform", event.transform);
+        const scale = event.transform.k;
+        labels.style("opacity", scale < 0.6 ? 0 : 1);
+      });
+
+    svgEl.call(zoom as any);
+
+    const link = containerGroup
+      .selectAll("line")
+      .data(links)
+      .enter()
+      .append("line")
+      .attr("stroke", colors.linkStroke)
+      .attr("stroke-width", 2)
+      .attr("stroke-opacity", 0.6);
+
+    const nodeGroup = containerGroup
+      .selectAll("g")
+      .data(nodes)
+      .enter()
+      .append("g")
+      .attr("data-id", (d) => d.id)
+      .call(
+        d3.drag<SVGGElement, GraphNode>()
+          .on("start", function (event) {
+            dragStartX = event.x;
+            dragStartY = event.y;
+            isDraggingNode = true;
+            if (!event.active) simulation!.alphaTarget(0.1).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+          })
+          .on("drag", function (event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+          })
+          .on("end", function (event, d) {
+            isDraggingNode = false;
+            if (!event.active) simulation!.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+            // Navigate on click (no drag movement). Uses distance threshold
+            // because D3 drag fires for even 1px of movement. Handled here
+            // instead of a "click" listener because D3 drag calls
+            // stopImmediatePropagation on mouseup in Chrome.
+            const dx = event.x - dragStartX;
+            const dy = event.y - dragStartY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < CLICK_DISTANCE && d.slug != null && d.group) {
+              closeModal();
+              const pb = document.getElementById('graph-modal-overlay')?.dataset.postsBase || 'posts';
+              let target: string;
+              if (d.group === "page" || d.group === "special") {
+                target = d.slug === "home" ? "/" : `/${d.slug}/`;
+              } else if (d.group === "tag") {
+                target = `/${pb}/tag/${d.slug}/`;
+              } else if (d.group === "doc") {
+                target = `/docs/${d.slug}/`;
+              } else {
+                // post, project, etc.
+                target = `/${d.group}s/${d.slug}/`;
+              }
+              navigate(target);
+            }
+          }) as any,
+      );
+
+    // Neighbor map for hover effects
+    const neighbors = new Map<string, Set<string>>();
+    for (const l of links) {
+      const src = typeof l.source === "object" ? l.source.id : l.source;
+      const tgt = typeof l.target === "object" ? l.target.id : l.target;
+      if (!neighbors.has(src)) neighbors.set(src, new Set());
+      if (!neighbors.has(tgt)) neighbors.set(tgt, new Set());
+      neighbors.get(src)!.add(tgt);
+      neighbors.get(tgt)!.add(src);
+    }
+
+    nodeGroup
+      .on("mouseover", function (_event, d) {
+        const connected = neighbors.get(d.id) ?? new Set();
+        connected.add(d.id);
+
+        link.transition().duration(150)
+          .attr("stroke", (l: any) =>
+            (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
+            (typeof l.target === 'object' ? l.target.id : l.target) === d.id
+              ? colors.highlight : colors.linkStroke)
+          .attr("stroke-opacity", (l: any) =>
+            (typeof l.source === 'object' ? l.source.id : l.source) === d.id ||
+            (typeof l.target === 'object' ? l.target.id : l.target) === d.id ? 0.8 : 0.1);
+
+        nodeGroup.selectAll<SVGCircleElement, GraphNode>("circle")
+          .attr("fill-opacity", (n) => connected.has(n.id) ? 1 : 0.3)
+          .attr("fill", (n) => n.id === d.id ? colors.highlight : (n.group === 'tag' ? tagColor : colors.linkStroke));
+
+        labels.transition().duration(150)
+          .style("opacity", (n) => connected.has(n.id) ? 1 : 0.1);
+      })
+      .on("mouseout", function () {
+        link.transition().duration(150)
+          .attr("stroke", colors.linkStroke)
+          .attr("stroke-opacity", 0.6);
+
+        nodeGroup.selectAll<SVGCircleElement, GraphNode>("circle")
+          .attr("fill", (n) => n.group === 'tag' ? tagColor : colors.linkStroke)
+          .attr("fill-opacity", 1);
+
+        const currentTransform = d3.zoomTransform(svgEl.node() as Element);
+        labels.transition().duration(150)
+          .style("opacity", currentTransform.k < 0.6 ? 0 : 0.6);
+      });
+
+    // Draft nodes get dimmed
+    nodeGroup.style("opacity", (d: any) => d.draft ? 0.35 : 1);
+
+    const tagColor = colors.tagFill;
+    nodeGroup.append("circle")
+      .attr("r", (d) => d.radius)
+      .attr("fill", (d) => d.group === 'tag' ? tagColor : colors.linkStroke)
+      .attr("cursor", "pointer");
+
+    const labels = nodeGroup.append("text")
+      .text((d) => d.name)
+      .attr("text-anchor", "middle")
+      .attr("dy", (d) => d.radius + 8)
+      .attr("font-size", "12px")
+      .attr("font-weight", "500")
+      .attr("fill", colors.nodeText)
+      .attr("pointer-events", "none")
+      .style("user-select", "none")
+      .style("opacity", 0.6);
+
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d: any) => d.source.x)
+        .attr("y1", (d: any) => d.source.y)
+        .attr("x2", (d: any) => d.target.x)
+        .attr("y2", (d: any) => d.target.y);
+      nodeGroup.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
+    });
+
+    simulation.alpha(1).restart();
+
+    // Keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const overlay = document.getElementById('graph-modal-overlay') as HTMLElement;
+      if (!overlay || overlay.classList.contains('hidden')) return;
+      if (e.key === 'Escape') closeModal();
+      else if (e.key === 't') { toggleTags(); }
+      else if (e.key === 'c') {
+        // Center/fit graph to viewport
+        const svgNode = svgEl.node();
+        if (!svgNode) return;
+        const svgRect = svgNode.getBoundingClientRect();
+        const w = svgRect.width, h = svgRect.height;
+        const allNodes = svgEl.selectAll('g[data-id]').nodes();
+        if (allNodes.length === 0) return;
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        allNodes.forEach((node) => {
+          if (node instanceof Element) {
+            const transform = node.getAttribute('transform');
+            if (transform) {
+              const match = transform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+              if (match) {
+                const x = parseFloat(match[1]), y = parseFloat(match[2]);
+                minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+              }
+            }
+          }
+        });
+        const padding = 50;
+        const bw = maxX - minX + padding * 2, bh = maxY - minY + padding * 2;
+        const scale = Math.max(0.1, Math.min(3, Math.min(w / bw, h / bh)));
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        svgEl.transition().duration(300).call(
+          zoom.transform as any,
+          d3.zoomIdentity.scale(scale).translate((w / 2) / scale - cx, (h / 2) / scale - cy)
+        );
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    cleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (simulation) { simulation.stop(); simulation = null; }
+    };
+  }
+
+  function initGraphModal() {
+    const overlay = document.getElementById('graph-modal-overlay') as HTMLElement;
+    const closeButton = document.getElementById('graph-modal-close') as HTMLButtonElement;
+    const graphContainer = document.getElementById('graph-modal-container') as HTMLElement;
+    if (!overlay || !closeButton) return;
+
+    const tagToggle = document.getElementById('graph-modal-tag-toggle');
+    tagToggle?.addEventListener('click', toggleTags);
+
+    closeButton.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (target === overlay || target.classList.contains('graph-modal-center')) closeModal();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) closeModal();
+    });
+
+    (window as any).__openGraphModal = openModal;
+    (window as any).__closeGraphModal = closeModal;
+  }
+
+  // Initialize on page load
+  function init() {
+    initGraphModal();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  document.addEventListener('astro:page-load', init);
+</script>
+
+<style>
+  .graph-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+  }
+
+  .graph-modal-overlay.hidden {
+    display: none;
+  }
+
+  .graph-modal-center {
+    display: flex;
+    min-height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .graph-modal-panel {
+    position: relative;
+    width: 100%;
+    max-width: 80rem;
+    height: 80vh;
+    background: var(--bg);
+    border-radius: 0.75rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .graph-modal-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 10;
+    padding: 0.375rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+  }
+
+  .graph-modal-close:hover {
+    color: var(--text);
+    opacity: 1;
+    background-color: rgba(128, 128, 128, 0.1);
+  }
+
+  .graph-modal-toggle {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 10;
+    padding: 0.375rem;
+    color: var(--muted);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+  }
+
+  .graph-modal-toggle:hover {
+    color: var(--text);
+    opacity: 1;
+    background-color: rgba(128, 128, 128, 0.1);
+  }
+
+  .graph-modal-toggle.active {
+    opacity: 1;
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    background-color: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .graph-modal-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+</style>

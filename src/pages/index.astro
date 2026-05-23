@@ -1,0 +1,310 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import PostList from '@/components/PostList.astro';
+import PostCard from '@/components/PostCard.astro';
+import ProjectCard from '@/components/ProjectCard.astro';
+import ProfileCard from '@/components/ProfileCard.astro';
+import { getCollection, getEntry, render } from 'astro:content';
+import { shouldShowPost, sortPostsByDate } from '@/utils/markdown';
+import { siteConfig, siteUrl } from '@/config';
+import type { Post, Project, Doc } from '@/types';
+
+const allPosts = await getCollection('posts') as unknown as Post[];
+const posts = sortPostsByDate(allPosts.filter(shouldShowPost));
+const recentPosts = posts.slice(0, siteConfig.recentPostsCount);
+const recentYears = new Set(recentPosts.map((p) => new Date(p.data.published).getUTCFullYear()));
+const allSameYear = recentYears.size === 1;
+
+// Resolve the featured/hero post
+let featuredPost: Post | null = null;
+if (siteConfig.home.featuredPostSlug) {
+  featuredPost = posts.find(p => p.id === siteConfig.home.featuredPostSlug) ?? posts[0] ?? null;
+} else {
+  featuredPost = posts[0] ?? null;
+}
+
+// Projects (if enabled and shown on homepage)
+let featuredProjects: Project[] = [];
+if (siteConfig.contentTypes.projects && siteConfig.home.showProjects) {
+  const allProjects = await getCollection('projects') as unknown as Project[];
+  featuredProjects = allProjects
+    .filter(p => !p.data.draft)
+    .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
+    .slice(0, 4);
+}
+
+// Docs (if enabled and shown on homepage)
+let featuredDocs: Doc[] = [];
+if (siteConfig.contentTypes.docs && siteConfig.home.showDocs) {
+  const allDocs = await getCollection('docs') as unknown as Doc[];
+  featuredDocs = allDocs
+    .filter(d => !d.data.draft)
+    .sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99))
+    .slice(0, 4);
+}
+
+// Home blurb
+let HomeBlurbContent: any = null;
+let homeUpdated: Date | null = null;
+if (siteConfig.home.showBlurb) {
+  try {
+    const homeBlurb = await getEntry('special', 'home');
+    if (homeBlurb) {
+      const { Content } = await render(homeBlurb);
+      HomeBlurbContent = Content;
+      homeUpdated = (homeBlurb.data as any).updated || null;
+    }
+  } catch (error) {}
+}
+
+const layout = siteConfig.home.layout || 'minimal';
+
+// Determine which cards should show cover images
+const showCoverImages = siteConfig.postOptions?.showPostCardCoverImages ?? 'none';
+function cardShowsImage(context: 'featured' | 'home' | 'posts'): boolean {
+  if (showCoverImages === 'all') return true;
+  if (showCoverImages === 'none') return false;
+  if (showCoverImages === 'featured') return context === 'featured';
+  if (showCoverImages === 'home') return context === 'home' || context === 'featured';
+  if (showCoverImages === 'posts') return context === 'posts';
+  if (showCoverImages === 'featured-and-posts') return context === 'featured' || context === 'posts';
+  return false;
+}
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: siteConfig.title,
+  description: siteConfig.description,
+  url: siteUrl(''),
+  ...(homeUpdated ? { dateModified: new Date(homeUpdated).toISOString() } : {}),
+  author: {
+    '@type': 'Person',
+    name: siteConfig.author,
+    url: siteUrl(''),
+  },
+};
+---
+
+<BaseLayout isHome jsonLd={jsonLd} title={siteConfig.homepageTitle || undefined}>
+  <Container>
+    <section class="py-8">
+
+      {/* ─── Profile Card (homepage placement) ─── */}
+      {siteConfig.profilePicture?.enabled && siteConfig.profilePicture.placement === 'homepage' && (
+        <ProfileCard placement="homepage" />
+      )}
+
+      {/* ─── Blurb ─── */}
+      {HomeBlurbContent && (
+        <div class="mb-10 leading-relaxed prose max-w-none animate">
+          <HomeBlurbContent />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          Layout: Minimal — chronological list, no images
+          ══════════════════════════════════════════════════════════════ */}
+      {layout === 'minimal' && (
+        <section class="mb-12 animate">
+          <h2 class="text-sm font-semibold mb-4 uppercase tracking-wider" style="color: var(--muted);">Recent posts</h2>
+          <PostList posts={recentPosts} hideYear={allSameYear} />
+          {posts.length > siteConfig.recentPostsCount && (
+            <a href="/posts/" class="view-more mt-4">All posts</a>
+          )}
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          Layout: Featured — hero card + list
+          ══════════════════════════════════════════════════════════════ */}
+      {layout === 'featured' && featuredPost && (
+        <section class="mb-12 animate">
+          <PostCard
+            post={featuredPost}
+            showImage={cardShowsImage('featured')}
+            class="featured-hero-card mb-6"
+            loading={cardShowsImage('featured') && featuredPost.data.image ? 'eager' : 'lazy'}
+            fetchpriority={cardShowsImage('featured') && featuredPost.data.image ? 'high' : undefined}
+          />
+          {recentPosts.filter(p => p.id !== featuredPost!.id).length > 0 && (
+            <>
+              <h3 class="text-xs font-semibold mb-3 uppercase tracking-wider" style="color: var(--muted);">More posts</h3>
+              <PostList posts={recentPosts.filter(p => p.id !== featuredPost!.id)} hideYear={allSameYear} />
+            </>
+          )}
+          {posts.length > siteConfig.recentPostsCount && (
+            <a href="/posts/" class="view-more mt-4">All posts</a>
+          )}
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          Layout: Grid — 2-column PostCard grid
+          ══════════════════════════════════════════════════════════════ */}
+      {layout === 'grid' && (() => {
+        const firstCardWithImage = recentPosts.findIndex(p => cardShowsImage('home') && !!p.data.image);
+        return (
+        <section class="mb-12 animate">
+          <h2 class="text-sm font-semibold mb-4 uppercase tracking-wider" style="color: var(--muted);">Recent posts</h2>
+          <div class="post-grid">
+            {recentPosts.map((post, i) => (
+              <PostCard
+                post={post}
+                showImage={cardShowsImage('home')}
+                loading={i === firstCardWithImage ? 'eager' : 'lazy'}
+                fetchpriority={i === firstCardWithImage ? 'high' : undefined}
+              />
+            ))}
+          </div>
+          {posts.length > siteConfig.recentPostsCount && (
+            <a href="/posts/" class="view-more mt-6">All posts</a>
+          )}
+        </section>
+        );
+      })()}
+
+      {/* ══════════════════════════════════════════════════════════════
+          Layout: Magazine — large hero card + 2-column grid below
+          ══════════════════════════════════════════════════════════════ */}
+      {layout === 'magazine' && (() => {
+        const magazineRest = recentPosts.filter(p => p.id !== featuredPost?.id);
+        const heroHasImage = featuredPost && cardShowsImage('featured') && !!featuredPost.data.image;
+        const firstGridWithImage = heroHasImage ? -1 : magazineRest.findIndex(p => cardShowsImage('home') && !!p.data.image);
+        return (
+        <section class="mb-12 animate magazine-layout">
+          {featuredPost && (
+            <div class="magazine-hero">
+              <PostCard
+                post={featuredPost}
+                showImage={cardShowsImage('featured')}
+                class="magazine-hero__card"
+                loading={heroHasImage ? 'eager' : 'lazy'}
+                fetchpriority={heroHasImage ? 'high' : undefined}
+              />
+            </div>
+          )}
+          <h2 class="magazine-grid-heading">Recent posts</h2>
+          <div class="magazine-grid">
+            {magazineRest.map((post, i) => (
+              <PostCard
+                post={post}
+                showImage={cardShowsImage('home')}
+                loading={i === firstGridWithImage ? 'eager' : 'lazy'}
+                fetchpriority={i === firstGridWithImage ? 'high' : undefined}
+              />
+            ))}
+          </div>
+          {posts.length > siteConfig.recentPostsCount && (
+            <a href="/posts/" class="view-more mt-6">All posts</a>
+          )}
+        </section>
+        );
+      })()}
+
+      {/* ─── Featured Projects ─── */}
+      {featuredProjects.length > 0 && (
+        <section class="mb-12 animate">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wider" style="color: var(--muted);">Projects</h2>
+            <a href="/projects/" class="view-more">View all</a>
+          </div>
+          <div class="post-grid">
+            {featuredProjects.map(project => (
+              <ProjectCard project={project} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ─── Featured Docs ─── */}
+      {featuredDocs.length > 0 && (
+        <section class="mb-12 animate">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-sm font-semibold uppercase tracking-wider" style="color: var(--muted);">Docs</h2>
+            <a href="/docs/" class="view-more">View all</a>
+          </div>
+          <ul class="space-y-2 list-none p-0">
+            {featuredDocs.map(doc => (
+              <li>
+                <a href={`/docs/${doc.id}/`} class="doc-card doc-card--row">
+                  <div class="min-w-0">
+                    <span class="doc-card__title">{doc.data.title}</span>
+                    {doc.data.description && (
+                      <span class="doc-card__desc block">{doc.data.description}</span>
+                    )}
+                  </div>
+                  {doc.data.category && (
+                    <span class="doc-card__meta shrink-0">{doc.data.category}</span>
+                  )}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+    </section>
+  </Container>
+</BaseLayout>
+
+<style>
+  /* Shared 2-column grid for grid/magazine/projects */
+  .post-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  @media (min-width: 480px) {
+    .post-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* Featured hero card — slightly larger title */
+  .featured-hero-card :global(.post-card__title) {
+    font-size: 1.125rem;
+  }
+
+  /* Magazine layout */
+  .magazine-layout .magazine-hero {
+    margin-bottom: 1rem;
+  }
+
+  .magazine-grid-heading {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .magazine-hero__card :global(.post-card__title) {
+    font-size: 1.25rem;
+  }
+
+  .magazine-hero__card :global(.post-card__desc) {
+    -webkit-line-clamp: 3;
+  }
+
+  .magazine-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Slightly stronger text in grid cards so content stays readable while still secondary to hero */
+  .magazine-grid :global(.post-card__desc),
+  .magazine-grid :global(.post-card__date) {
+    color: color-mix(in srgb, var(--text) 78%, var(--muted) 22%);
+  }
+
+  @media (min-width: 480px) {
+    .magazine-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

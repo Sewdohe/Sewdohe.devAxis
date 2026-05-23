@@ -1,0 +1,40 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import PostList from '@/components/PostList.astro';
+import Pagination from '@/components/Pagination.astro';
+import { getCollection } from 'astro:content';
+import { shouldShowPost, sortPostsByDate } from '@/utils/markdown';
+import { siteConfig } from '@/config';
+import type { Post } from '@/types';
+
+export async function getStaticPaths() {
+  const allPosts = await getCollection('posts') as unknown as Post[];
+  const posts = sortPostsByDate(allPosts.filter(shouldShowPost));
+  const totalPages = Math.ceil(posts.length / siteConfig.postsPerPage);
+
+  return Array.from({ length: totalPages - 1 }, (_, i) => ({
+    params: { page: String(i + 2) },
+    props: {
+      page: i + 2,
+      totalPages,
+      posts: posts.slice(
+        (i + 1) * siteConfig.postsPerPage,
+        (i + 2) * siteConfig.postsPerPage
+      ),
+    },
+  }));
+}
+
+const { page, totalPages, posts } = Astro.props;
+---
+
+<BaseLayout title={`Posts - Page ${page}`} description={`All posts. Page ${page} of ${totalPages}.`} ogImage={`/open-graph/${siteConfig.routes?.postsBase || 'posts'}/${page}.png`}>
+  <Container>
+    <section class="py-8">
+      <h1 class="text-2xl font-semibold tracking-tight mb-8">Posts</h1>
+      <PostList posts={posts} />
+      <Pagination currentPage={page} totalPages={totalPages} baseUrl="/posts" />
+    </section>
+  </Container>
+</BaseLayout>

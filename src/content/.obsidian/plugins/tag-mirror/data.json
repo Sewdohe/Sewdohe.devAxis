@@ -1,0 +1,8 @@
+{
+  "mirrorFolder": "tags",
+  "titlePrefix": "#",
+  "autoDelete": true,
+  "confirmDelete": true,
+  "ignoreFolders": "",
+  "nestedHandling": "subfolder"
+}

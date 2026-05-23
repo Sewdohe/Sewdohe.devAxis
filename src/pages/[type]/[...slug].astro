@@ -1,0 +1,81 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import Container from '@/components/Container.astro';
+import TableOfContents from '@/components/TableOfContents.astro';
+import LocalGraph from '@/components/LocalGraph.astro';
+import { getCollection, render } from 'astro:content';
+import { siteConfig } from '@/config';
+import { hasGraphDataForSlug } from '@/utils/graph-data';
+
+type CustomType = NonNullable<typeof siteConfig.customContentTypes>[number];
+
+export async function getStaticPaths() {
+  const defs = (siteConfig.customContentTypes ?? []).filter((t: CustomType) => t.enabled);
+  const paths: Array<{ params: { type: string; slug: string }; props: { def: CustomType; entry: any } }> = [];
+
+  for (const def of defs) {
+    const entries = await getCollection(def.id);
+    for (const entry of entries as any[]) {
+      if (entry.data?.draft && import.meta.env.PROD) continue;
+      paths.push({
+        params: { type: def.routeBase, slug: entry.id },
+        props: { def, entry },
+      });
+    }
+  }
+
+  return paths;
+}
+
+const { def, entry } = Astro.props as { def: CustomType; entry: any };
+const { Content, headings } = await render(entry as any);
+const title = entry?.data?.title || entry?.id || def.label;
+const description = entry?.data?.description || undefined;
+
+const tocDepth = siteConfig.features?.tocDepth ?? 3;
+const tocHeadings = (headings ?? []).filter((h: any) => h.depth >= 2 && h.depth <= tocDepth && h.slug !== 'footnote-label');
+const showToc = tocHeadings.length >= 2 && entry?.data?.hideTOC !== true;
+
+// Graph support is best-effort: if your graph generator doesn't include this prefix, it simply won't show.
+const graphPrefix = `custom:${def.id}`;
+const showGraph =
+  siteConfig.features?.localGraph &&
+  entry?.data?.hideLocalGraph !== true &&
+  hasGraphDataForSlug(`${graphPrefix}:${entry.id}`);
+---
+
+<BaseLayout title={title} description={description} ogImage={`/open-graph/${def.routeBase}/${entry.id}.png`}>
+  <Container>
+    <article class="py-8">
+      <a href={`/${def.routeBase}/`} class="back-link back-link-mobile animate">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5H9.5C11.1569 6.5 12.5 7.84315 12.5 9.5V9.5C12.5 11.1569 11.1569 12.5 9.5 12.5H7.5M2.5 6.5L5.5 9.5M2.5 6.5L5.5 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Index
+      </a>
+
+      <header class="mb-8 animate">
+        <h1 class="text-2xl font-semibold tracking-tight">{title}</h1>
+        {description && (
+          <p class="text-sm mt-2" style="color: var(--muted);">{description}</p>
+        )}
+      </header>
+
+      <div class="prose prose-neutral dark:prose-invert max-w-none animate">
+        <Content />
+      </div>
+    </article>
+  </Container>
+
+  <div class="toc-sidebar animate">
+    <a href={`/${def.routeBase}/`} class="back-link">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.5 6.5H9.5C11.1569 6.5 12.5 7.84315 12.5 9.5V9.5C12.5 11.1569 11.1569 12.5 9.5 12.5H7.5M2.5 6.5L5.5 9.5M2.5 6.5L5.5 3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Index
+    </a>
+    {showGraph && (
+      <div class="mt-6">
+        <LocalGraph currentSlug={`${graphPrefix}:${entry.id}`} />
+      </div>
+    )}
+    {showToc && <TableOfContents headings={tocHeadings} />}
+  </div>
+</BaseLayout>
+
