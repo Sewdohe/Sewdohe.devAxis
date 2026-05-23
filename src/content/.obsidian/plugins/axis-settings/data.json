@@ -91,8 +91,8 @@
     {
       "children": [
         {
-          "title": "Sample Project",
-          "url": "/projects/sample-project/"
+          "title": "NaviBot",
+          "url": "/projects/navibot-discord-engine/"
         }
       ],
       "title": "Projects",
@@ -102,12 +102,8 @@
     {
       "children": [
         {
-          "title": "Getting Started",
-          "url": "/docs/getting-started/"
-        },
-        {
-          "title": "Themes",
-          "url": "/docs/themes/"
+          "title": "Navibot Development",
+          "url": "/docs//"
         }
       ],
       "title": "Docs",

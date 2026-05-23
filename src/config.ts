@@ -340,8 +340,8 @@ export const siteConfig: SiteConfig = {
   pages: [
     { title: 'Home', url: '/', icon: 'home', showInNav: false },
     { title: 'Posts', url: '/posts/', icon: 'pencil-square' },
-    { title: 'Projects', url: '/projects/', icon: 'folder', children: [{ title: 'Sample Project', url: '/projects/sample-project/' }] },
-    { title: 'Docs', url: '/docs/', icon: 'book', children: [{ title: 'Getting Started', url: '/docs/getting-started/' }, { title: 'Themes', url: '/docs/themes/' }] },
+    { title: 'Projects', url: '/projects/', icon: 'folder', children: [{ title: 'NaviBot', url: '/projects/navibot-discord-engine/' }] },
+    { title: 'Docs', url: '/docs/', icon: 'book', children: [{ title: 'Navibot Development', url: '/docs//' }] },
     { title: 'About', url: '/about/', icon: 'user-circle' },
     { title: 'Buy', url: 'https://store.davidvkimball.com/checkout/buy/b942a935-bc8b-4389-a50a-c8aada83002f', icon: 'shopping-bag', showInNav: false }
   ],
