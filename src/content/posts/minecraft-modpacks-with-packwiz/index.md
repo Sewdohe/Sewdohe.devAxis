@@ -13,7 +13,7 @@ hideCoverImage: false
 hideTOC: false
 hideLocalGraph: false
 keyword: ""
-draft: true
+draft: false
 ---
 
 ## Packwiz & Modpacks

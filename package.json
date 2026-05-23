@@ -3,6 +3,7 @@
   "type": "module",
   "version": "1.1.5",
   "description": "Axis - a premium Astro theme for personal publishing. Vault CMS-native.",
+  "overrides": {"vite": "^7"},
   "scripts": {
     "dev": "node -e \"require('fs').rmSync('.astro',{recursive:true,force:true})\" && node scripts/sync-images.js && node scripts/generate-graph-data.js && astro dev",
     "build": "node -e \"require('fs').rmSync('.astro',{recursive:true,force:true})\" && node scripts/sync-images.js && node scripts/process-property-redirects.js && node scripts/generate-graph-data.js --production && astro build",
