@@ -18,7 +18,6 @@ featured: true
 ---
 # Navi: The High-Performance, Lua-Driven Discord Engine
 
-![navibot-desktop-screenshot](projects/navibot-discord-engine/navibot-desktop-screenshot.png)
 
 **Navi** is a next-generation, general-purpose Discord bot built for server owners who demand absolute stability, and developers who crave flexibility. 
 
